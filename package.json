@@ -25,5 +25,12 @@
   "devDependencies": {
     "eslint": "^9",
     "eslint-config-next": "16.2.7"
+  },
+  "packageManager": "pnpm@11.1.3",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }

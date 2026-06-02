@@ -17,6 +17,12 @@ import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import DoubleArrowIcon from '@mui/icons-material/DoubleArrow';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+import InfoIcon from '@mui/icons-material/Info';
+import TranslateIcon from '@mui/icons-material/Translate';
+import ShuffleIcon from '@mui/icons-material/Shuffle';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import axios from 'axios';
 
 import { createClient } from '@/utils/supabase/client';
@@ -32,7 +38,8 @@ export default function PracticeView() {
   const supabase = createClient();
 
   const [level, setLevel] = useState('Beginner');
-  const [direction, setDirection] = useState('th-en'); // th-en or en-th
+  const [direction, setDirection] = useState('th-en'); // th-en, en-th, or random
+  const [activeDirection, setActiveDirection] = useState('th-en'); // actual direction for the current word
   const [currentWord, setCurrentWord] = useState(null);
   const [translationInput, setTranslationInput] = useState('');
   const [loadingWord, setLoadingWord] = useState(false);
@@ -62,8 +69,14 @@ export default function PracticeView() {
     setResult(null);
     setShowHint(false);
     
+    // Choose actual direction randomly if "random" is selected
+    const activeDir = direction === 'random'
+      ? (Math.random() > 0.5 ? 'th-en' : 'en-th')
+      : direction;
+    setActiveDirection(activeDir);
+    
     try {
-      const response = await axios.post('/api/practice/word', { level, direction });
+      const response = await axios.post('/api/practice/word', { level, direction: activeDir });
       const data = response.data;
       if (data && data.word) {
         setCurrentWord(data);
@@ -93,7 +106,7 @@ export default function PracticeView() {
       const response = await axios.post('/api/practice/check', {
         word: currentWord.word,
         translation: translationInput.trim(),
-        direction,
+        direction: activeDirection,
       });
 
       const data = response.data;
@@ -105,7 +118,7 @@ export default function PracticeView() {
         let vocabList = localVocab ? JSON.parse(localVocab) : [];
         
         const existingIdx = vocabList.findIndex(v => v.word === currentWord.word);
-        const correctTranslation = data.correctTranslation || (direction === 'th-en' ? 'translation' : 'คำแปล');
+        const correctTranslation = data.correctTranslation || (activeDirection === 'th-en' ? 'translation' : 'คำแปล');
         
         if (existingIdx > -1) {
           vocabList[existingIdx].correct_count += data.isCorrect ? 1 : 0;
@@ -115,7 +128,7 @@ export default function PracticeView() {
             id: crypto.randomUUID(),
             word: currentWord.word,
             translation: correctTranslation,
-            source_lang: direction === 'th-en' ? 'th' : 'en',
+            source_lang: activeDirection === 'th-en' ? 'th' : 'en',
             correct_count: data.isCorrect ? 1 : 0,
             created_at: new Date().toISOString(),
           });
@@ -148,8 +161,24 @@ export default function PracticeView() {
                   onChange={(e) => setDirection(e.target.value)}
                   disabled={loadingWord}
                 >
-                  <MenuItem value="th-en">🇹🇭 ภาษาไทย ➔ 🇺🇸 ภาษาอังกฤษ</MenuItem>
-                  <MenuItem value="en-th">🇺🇸 ภาษาอังกฤษ ➔ 🇹🇭 ภาษาไทย</MenuItem>
+                  <MenuItem value="th-en">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <TranslateIcon fontSize="small" color="primary" />
+                      <Typography variant="body2">ภาษาไทย ➔ ภาษาอังกฤษ</Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="en-th">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <TranslateIcon fontSize="small" color="secondary" />
+                      <Typography variant="body2">ภาษาอังกฤษ ➔ ภาษาไทย</Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="random">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ShuffleIcon fontSize="small" color="action" />
+                      <Typography variant="body2">สุ่มรูปแบบการแปล (ไทย/อังกฤษ)</Typography>
+                    </Box>
+                  </MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -197,11 +226,23 @@ export default function PracticeView() {
           ) : currentWord ? (
             <Box>
               <Typography variant="h6" color="text.secondary" sx={{ mb: 1, fontSize: '0.9rem', fontWeight: 600 }}>
-                กรุณาแปลคำศัพท์ / ประโยคนี้:
+                กรุณาแปลคำศัพท์ / ประโยคนี้ (แปลเป็น{activeDirection === 'th-en' ? 'ภาษาอังกฤษ' : 'ภาษาไทย'}):
               </Typography>
-              <Typography variant="h3" component="h2" sx={{ fontWeight: 800, color: 'primary.main', mb: 3 }}>
-                {currentWord.word}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, gap: 2 }}>
+                <Typography variant="h3" component="h2" sx={{ fontWeight: 800, color: 'primary.main', wordBreak: 'break-word' }}>
+                  {currentWord.word}
+                </Typography>
+                <Tooltip title="สุ่มคำใหม่ (ข้ามคำนี้)">
+                  <IconButton 
+                    onClick={loadNewWord} 
+                    disabled={loadingWord || checking}
+                    color="secondary"
+                    sx={{ border: '1px solid', borderColor: 'divider' }}
+                  >
+                    <RefreshIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
 
               {/* Hint Toggle */}
               {currentWord.hint && (
@@ -227,7 +268,7 @@ export default function PracticeView() {
               <Box component="form" onSubmit={handleCheck} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
                   fullWidth
-                  label={direction === 'th-en' ? 'พิมพ์คำแปลภาษาอังกฤษที่นี่' : 'ใส่คำแปลภาษาไทยที่นี่'}
+                  label={activeDirection === 'th-en' ? 'พิมพ์คำแปลภาษาอังกฤษที่นี่' : 'ใส่คำแปลภาษาไทยที่นี่'}
                   variant="outlined"
                   value={translationInput}
                   onChange={(e) => setTranslationInput(e.target.value)}
@@ -299,14 +340,34 @@ export default function PracticeView() {
               </Typography>
 
               {result.correctTranslation && (
-                <Typography variant="body2" color="text.secondary">
-                  คำแปลที่แนะนำ: <strong>{result.correctTranslation}</strong>
+                <Typography variant="body1" color="text.primary" sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1.5, mt: 1 }}>
+                  คำแปลที่ถูกต้อง:{' '}
+                  <Typography
+                    component="span"
+                    sx={{
+                      fontSize: '1.4rem',
+                      fontWeight: 800,
+                      color: 'secondary.main',
+                      bgcolor: (theme) => theme.palette.mode === 'light' ? 'rgba(236, 72, 153, 0.08)' : 'rgba(236, 72, 153, 0.15)',
+                      px: 2,
+                      py: 0.5,
+                      borderRadius: '8px',
+                      border: '1px dashed',
+                      borderColor: 'secondary.main',
+                      display: 'inline-block',
+                    }}
+                  >
+                    {result.correctTranslation}
+                  </Typography>
                 </Typography>
               )}
 
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-                ℹ️ {user ? 'คำศัพท์นี้ถูกบันทึกไว้ในสมุดคำศัพท์ส่วนตัวเรียบร้อยแล้ว' : 'บันทึกคำศัพท์ไว้ในสมุดคำศัพท์ของบุคคลทั่วไปชั่วคราว'}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 2 }}>
+                <InfoIcon color="action" sx={{ fontSize: 18 }} />
+                <Typography variant="caption" color="text.secondary">
+                  {user ? 'คำศัพท์นี้ถูกบันทึกไว้ในสมุดคำศัพท์ส่วนตัวเรียบร้อยแล้ว' : 'บันทึกคำศัพท์ไว้ในสมุดคำศัพท์ของบุคคลทั่วไปชั่วคราว'}
+                </Typography>
+              </Box>
             </Box>
           </CardContent>
         </Card>

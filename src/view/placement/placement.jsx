@@ -13,6 +13,7 @@ import FormControl from '@mui/material/FormControl';
 import LinearProgress from '@mui/material/LinearProgress';
 import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
+import CelebrationIcon from '@mui/icons-material/Celebration';
 
 import { createClient } from '@/utils/supabase/client';
 
@@ -148,8 +149,8 @@ export default function PlacementTestView() {
       <Box sx={{ maxWidth: 600, mx: 'auto', width: '100%', py: 4 }}>
         <Card sx={{ borderRadius: 4, textAlign: 'center', p: 4 }}>
           <CardContent>
-            <Typography variant="h3" sx={{ mb: 2, fontWeight: 800, color: 'primary.main' }}>
-              ทดสอบเสร็จสิ้น! 🎉
+            <Typography variant="h3" sx={{ mb: 2, fontWeight: 800, color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+              <CelebrationIcon sx={{ fontSize: 40 }} /> ทดสอบเสร็จสิ้น!
             </Typography>
             <Typography variant="h5" sx={{ mb: 3 }}>
               คะแนนของคุณ: <strong>{score} / {QUESTIONS.length}</strong>

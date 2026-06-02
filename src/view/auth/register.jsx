@@ -102,6 +102,7 @@ export default function RegisterView() {
         <Box component="form" onSubmit={handleRegister} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           <TextField
             label="อีเมล"
+            placeholder="example@email.com"
             variant="outlined"
             type="email"
             required
@@ -121,6 +122,7 @@ export default function RegisterView() {
 
           <TextField
             label="รหัสผ่าน"
+            placeholder="••••••••"
             variant="outlined"
             type={showPassword ? 'text' : 'password'}
             required
@@ -140,6 +142,7 @@ export default function RegisterView() {
 
           <TextField
             label="ยืนยันรหัสผ่าน"
+            placeholder="••••••••"
             variant="outlined"
             type={showPassword ? 'text' : 'password'}
             required

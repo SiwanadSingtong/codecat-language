@@ -80,7 +80,7 @@ export const getTheme = (mode) => {
         styleOverrides: {
           root: {
             padding: '8px 20px',
-            borderRadius: '8px',
+            borderRadius: '24px',
             boxShadow: 'none',
             '&:hover': {
               boxShadow: 'none',

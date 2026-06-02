@@ -18,6 +18,7 @@ import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import QuizIcon from '@mui/icons-material/Assignment';
+import PetsIcon from '@mui/icons-material/Pets';
 
 import { createClient } from '@/utils/supabase/client';
 
@@ -110,8 +111,8 @@ export default function DashboardView() {
         <CardContent sx={{ p: { xs: 3, md: 5 } }}>
           <Grid container spacing={4} sx={{ alignItems: 'center' }}>
             <Grid size={{ xs: 12, md: 8 }}>
-              <Typography variant="h3" sx={{ fontWeight: 800, mb: 1, fontSize: { xs: '2.2rem', md: '3rem' } }}>
-                ยินดีต้อนรับสู่ Catlingo! 🐾
+              <Typography variant="h3" sx={{ fontWeight: 800, mb: 1, fontSize: { xs: '2.2rem', md: '3rem' }, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                ยินดีต้อนรับสู่ Catlingo! <PetsIcon sx={{ fontSize: { xs: '2.2rem', md: '3rem' } }} />
               </Typography>
               <Typography variant="h6" sx={{ opacity: 0.9, fontWeight: 400, mb: 3, lineHeight: 1.5, fontSize: '1.1rem' }}>
                 พื้นที่เรียนรู้ภาษาอังกฤษส่วนตัวของคุณด้วยพลัง AI ร่วมพูดคุยโต้ตอบ ทำแบบฝึกหัดคำศัพท์ และสร้างพจนานุกรมคำศัพท์เพื่ออัปเลเวลทักษะการสื่อสารของคุณให้เก่งขึ้นไปอีกขั้น!

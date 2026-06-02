@@ -31,6 +31,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
+import SchoolIcon from '@mui/icons-material/School';
+import InfoIcon from '@mui/icons-material/Info';
 
 import { createClient } from '@/utils/supabase/client';
 
@@ -173,8 +175,8 @@ export default function VocabularyView() {
         <Box sx={{ maxWidth: 550, mx: 'auto', width: '100%', py: 4 }}>
           <Card sx={{ borderRadius: 4, textAlign: 'center', p: 4 }}>
             <CardContent>
-              <Typography variant="h3" sx={{ mb: 2, fontWeight: 800, color: 'secondary.main' }}>
-                ทบทวนศัพท์เสร็จสิ้น! 🎓
+              <Typography variant="h3" sx={{ mb: 2, fontWeight: 800, color: 'secondary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                <SchoolIcon sx={{ fontSize: 40 }} /> ทบทวนศัพท์เสร็จสิ้น!
               </Typography>
               <Typography variant="h5" sx={{ mb: 4 }}>
                 คุณตอบถูกทั้งหมด <strong>{reviewScore} จาก {reviewQueue.length}</strong> คำ!
@@ -277,8 +279,22 @@ export default function VocabularyView() {
             <Typography variant="body2" sx={{ mb: 1 }}>
               {reviewResult.feedback}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              คำแปลมาตรฐาน: <strong>{currentReviewItem.translation}</strong>
+            <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+              คำแปลที่ถูกต้อง:{' '}
+              <Typography
+                component="span"
+                sx={{
+                  fontWeight: 800,
+                  color: 'secondary.main',
+                  bgcolor: (theme) => theme.palette.mode === 'light' ? 'rgba(236, 72, 153, 0.08)' : 'rgba(236, 72, 153, 0.15)',
+                  px: 1.5,
+                  py: 0.2,
+                  borderRadius: '6px',
+                  display: 'inline-block',
+                }}
+              >
+                {currentReviewItem.translation}
+              </Typography>
             </Typography>
           </Alert>
         )}
@@ -314,9 +330,10 @@ export default function VocabularyView() {
 
       {vocabList.length === 0 ? (
         <Card sx={{ borderRadius: 4, py: 6, textAlign: 'center' }}>
-          <CardContent>
-            <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-              ยังไม่มีคำศัพท์บันทึกอยู่ในสมุด! 📖
+          <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <MenuBookIcon sx={{ fontSize: 60, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 1, fontWeight: 700 }}>
+              ยังไม่มีคำศัพท์บันทึกอยู่ในสมุดคำศัพท์
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               กรุณาไปที่เมนู 'ฝึกแปลคำศัพท์' เพื่อตอบแบบฝึกหัดแปลภาษา โดยคำศัพท์และคำแปลที่เสร็จสิ้นจะเซฟเข้ามาที่หน้านี้โดยอัตโนมัติ

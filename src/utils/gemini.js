@@ -132,7 +132,7 @@ You must be flexible! Accept synonyms and natural phrasing. Ignore minor punctua
 Return a JSON object in this exact format:
 {
   "isCorrect": boolean,
-  "feedback": "A short, encouraging explanation of why it is correct or incorrect, pointing out any minor spelling issues or alternative correct answers in Thai or English.",
+  "feedback": "A short, encouraging explanation written in Thai language (ภาษาไทย) explaining why it is correct or incorrect, pointing out any minor spelling issues or alternative correct answers.",
   "correctTranslation": "The standard / most common correct translation"
 }
 `;

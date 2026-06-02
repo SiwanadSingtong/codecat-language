@@ -9,6 +9,8 @@ import Avatar from '@mui/material/Avatar';
 import CircularProgress from '@mui/material/CircularProgress';
 import SendIcon from '@mui/icons-material/Send';
 import SchoolIcon from '@mui/icons-material/School';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import PersonIcon from '@mui/icons-material/Person';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import axios from 'axios';
@@ -38,7 +40,7 @@ export default function ChatView() {
           const initialGreeting = [
             {
               role: 'model',
-              content: "สวัสดีครับ! ผมคือครูสอนภาษาอังกฤษ Catlingo AI 🐾 มาร่วมสนทนาภาษาอังกฤษกันเลยครับ! ไม่ต้องกลัวที่จะแต่งประโยคผิดนะ ผมจะช่วยตรวจแก้ไวยากรณ์ให้โดยเฉพาะการใช้ 'is, am, are' ให้ถูกต้องเองครับ วันนี้อยากคุยเรื่องอะไรดีครับ?",
+              content: "สวัสดีครับ! ผมคือครูสอนภาษาอังกฤษ Catlingo AI มาร่วมสนทนาภาษาอังกฤษกันเลยครับ! ไม่ต้องกลัวที่จะแต่งประโยคผิดนะ ผมจะช่วยตรวจแก้ไวยากรณ์ให้โดยเฉพาะการใช้ 'is, am, are' ให้ถูกต้องเองครับ วันนี้อยากคุยเรื่องอะไรดีครับ?",
               created_at: new Date().toISOString()
             }
           ];
@@ -71,7 +73,7 @@ export default function ChatView() {
         const initialGreeting = [
           {
             role: 'model',
-            content: `สวัสดีครับ! ผมคือครูสอนภาษาอังกฤษ Catlingo AI 🐾 ระดับภาษาของคุณคือ ${profile?.level || 'Beginner'} มาร่วมฝึกสนทนากันครับ! ผมจะคอยช่วยแนะนำและตรวจแก้ไวยากรณ์ (เช่น 'is/am/are') วันนี้อยากคุยเรื่องอะไรดีครับ?`,
+            content: `สวัสดีครับ! ผมคือครูสอนภาษาอังกฤษ Catlingo AI ระดับภาษาของคุณคือ ${profile?.level || 'Beginner'} มาร่วมฝึกสนทนากันครับ! ผมจะคอยช่วยแนะนำและตรวจแก้ไวยากรณ์ (เช่น 'is/am/are') วันนี้อยากคุยเรื่องอะไรดีครับ?`,
             created_at: new Date().toISOString()
           }
         ];
@@ -203,7 +205,7 @@ export default function ChatView() {
                   fontWeight: 'bold',
                 }}
               >
-                {isAI ? '🤖' : '👤'}
+                {isAI ? <SmartToyIcon /> : <PersonIcon />}
               </Avatar>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: isAI ? 'flex-start' : 'flex-end' }}>
@@ -235,7 +237,7 @@ export default function ChatView() {
         })}
         {loading && (
           <Box sx={{ display: 'flex', alignSelf: 'flex-start', gap: 1.5, alignItems: 'center' }}>
-            <Avatar sx={{ bgcolor: 'secondary.main', width: 36, height: 36 }}>🤖</Avatar>
+            <Avatar sx={{ bgcolor: 'secondary.main', width: 36, height: 36 }}><SmartToyIcon /></Avatar>
             <Paper sx={{ p: 2, borderRadius: '4px 16px 16px 16px', bgcolor: (theme) => theme.palette.mode === 'light' ? '#F1F5F9' : '#1E293B' }}>
               <CircularProgress size={20} color="secondary" />
             </Paper>
