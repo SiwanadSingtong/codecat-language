@@ -41,6 +41,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 import { createClient } from '@/utils/supabase/client';
+import PageLoader from '@/components/PageLoader';
 
 // SWR Fetcher
 const fetcher = url => axios.get(url).then(res => res.data);
@@ -52,6 +53,7 @@ export default function VocabularyView() {
   const [vocabList, setVocabList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState(null);
+  const [initializing, setInitializing] = useState(true);
 
   // Review Mode States
   const [reviewMode, setReviewMode] = useState(false);
@@ -73,10 +75,12 @@ export default function VocabularyView() {
     supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
       setUser(currentUser);
       if (!currentUser) {
-        // Load guest vocab
+        // Load guest vocab from localStorage
         const localVocab = localStorage.getItem('guest-vocabularies');
         setVocabList(localVocab ? JSON.parse(localVocab) : []);
+        setInitializing(false);
       }
+      // For logged-in users, SWR will handle the data — initializing turns false after SWR resolves
     });
   }, [supabase]);
 
@@ -90,8 +94,14 @@ export default function VocabularyView() {
   useEffect(() => {
     if (user && dbVocab) {
       setVocabList(dbVocab);
+      setInitializing(false);
     }
   }, [dbVocab, user]);
+
+  // If logged-in user but SWR errored, stop initializing
+  useEffect(() => {
+    if (user && fetchError) setInitializing(false);
+  }, [user, fetchError]);
 
   // Filtered List
   const filteredVocab = vocabList.filter(item => 
@@ -217,12 +227,8 @@ export default function VocabularyView() {
     setWordToDelete(null);
   };
 
-  if (isLoading && user) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+  if (initializing || (isLoading && user)) {
+    return <PageLoader message="กำลังโหลดสมุดคำศัพท์..." />;
   }
 
   // --- REVIEW MODE UI ---

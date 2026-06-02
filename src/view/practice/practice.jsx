@@ -26,6 +26,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import axios from 'axios';
 
 import { createClient } from '@/utils/supabase/client';
+import PageLoader from '@/components/PageLoader';
 
 const translateLevel = (lvl) => {
   if (lvl === 'Beginner') return 'ระดับเริ่มต้น';
@@ -47,6 +48,7 @@ export default function PracticeView() {
   const [showHint, setShowHint] = useState(false);
   const [result, setResult] = useState(null); // { isCorrect, feedback, correctTranslation }
   const [user, setUser] = useState(null);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -55,9 +57,11 @@ export default function PracticeView() {
         // Load user level
         supabase.from('profiles').select('level').eq('id', user.id).single().then(({ data }) => {
           if (data) setLevel(data.level || 'Beginner');
+          setInitializing(false);
         });
       } else {
         setLevel(localStorage.getItem('guest-level') || 'Beginner');
+        setInitializing(false);
       }
     });
   }, [supabase]);
@@ -148,6 +152,10 @@ export default function PracticeView() {
       setChecking(false);
     }
   };
+
+  if (initializing) {
+    return <PageLoader message="กำลังเตรียมแบบฝึกหัด..." />;
+  }
 
   return (
     <Box sx={{ maxWidth: 650, mx: 'auto', width: '100%', py: 2 }}>

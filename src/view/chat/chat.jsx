@@ -16,6 +16,25 @@ import AlertTitle from '@mui/material/AlertTitle';
 import axios from 'axios';
 
 import { createClient } from '@/utils/supabase/client';
+import PageLoader from '@/components/PageLoader';
+
+/**
+ * Renders message content with proper line breaks and word wrapping.
+ * Splits on \n so AI multi-line responses (paragraphs, lists) display correctly.
+ */
+function MessageContent({ text }) {
+  const lines = text.split('\n');
+  return (
+    <>
+      {lines.map((line, i) => (
+        <React.Fragment key={i}>
+          {line}
+          {i < lines.length - 1 && <br />}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
 
 export default function ChatView() {
   const supabase = createClient();
@@ -26,6 +45,7 @@ export default function ChatView() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [level, setLevel] = useState('Beginner');
+  const [initializing, setInitializing] = useState(true);
 
   // Load user profile and chat history
   useEffect(() => {
@@ -89,7 +109,7 @@ export default function ChatView() {
 
     supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
       setUser(currentUser);
-      loadHistory(currentUser);
+      loadHistory(currentUser).finally(() => setInitializing(false));
     });
   }, [supabase]);
 
@@ -157,6 +177,10 @@ export default function ChatView() {
     }
   };
 
+  if (initializing) {
+    return <PageLoader message="กำลังโหลดประวัติการสนทนา..." />;
+  }
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, height: '100%', maxWidth: 800, mx: 'auto', width: '100%' }}>
       {/* Grammar Hint Box */}
@@ -208,7 +232,16 @@ export default function ChatView() {
                 {isAI ? <SmartToyIcon /> : <PersonIcon />}
               </Avatar>
 
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: isAI ? 'flex-start' : 'flex-end' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: isAI ? 'flex-start' : 'flex-end',
+                  // Critical: minWidth:0 allows the flex child to shrink below its content size
+                  // so maxWidth:80% on the parent is actually respected
+                  minWidth: 0,
+                }}
+              >
                 <Box
                   sx={{
                     p: 2,
@@ -222,11 +255,15 @@ export default function ChatView() {
                         ? theme.palette.text.primary
                         : theme.palette.primary.contrastText,
                     boxShadow: 'none',
-                    lineHeight: 1.5,
-                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.6,
+                    // Break long words/URLs so they don't overflow the bubble
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
                   }}
                 >
-                  <Typography variant="body1">{msg.content}</Typography>
+                  <Typography variant="body1" component="div" sx={{ lineHeight: 1.6 }}>
+                    <MessageContent text={msg.content} />
+                  </Typography>
                 </Box>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, px: 1, fontSize: '0.7rem' }}>
                   {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

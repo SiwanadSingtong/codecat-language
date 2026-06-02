@@ -21,6 +21,7 @@ import QuizIcon from '@mui/icons-material/Assignment';
 import PetsIcon from '@mui/icons-material/Pets';
 
 import { createClient } from '@/utils/supabase/client';
+import PageLoader from '@/components/PageLoader';
 
 const translateLevel = (lvl) => {
   if (lvl === 'Beginner') return 'ระดับเริ่มต้น';
@@ -36,6 +37,7 @@ export default function DashboardView() {
   const [user, setUser] = useState(null);
   const [level, setLevel] = useState('Beginner');
   const [vocabCount, setVocabCount] = useState(0);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
     async function loadDashboardData(currentUser) {
@@ -67,7 +69,7 @@ export default function DashboardView() {
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
-      loadDashboardData(user);
+      loadDashboardData(user).finally(() => setInitializing(false));
     });
   }, [supabase]);
 
@@ -94,6 +96,10 @@ export default function DashboardView() {
       path: '/vocab',
     },
   ];
+
+  if (initializing) {
+    return <PageLoader message="กำลังโหลดข้อมูลผู้ใช้งาน..." />;
+  }
 
   return (
     <Box sx={{ flexGrow: 1, py: 2 }}>
