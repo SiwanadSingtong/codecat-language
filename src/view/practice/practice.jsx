@@ -97,6 +97,7 @@ export default function PracticeView() {
   // Load word automatically on mount/config change
   useEffect(() => {
     loadNewWord();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level, direction]);
 
   const handleCheck = async (e) => {
