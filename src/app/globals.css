@@ -15,3 +15,29 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* Custom Scrollbar for Webkit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a; /* Match default Slate-900 background */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155; /* Slate-700 gray thumb */
+  border-radius: 5px;
+  border: 2px solid #0f172a; /* Padding effect around thumb */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569; /* Slate-600 on hover */
+}
+
+/* Custom Scrollbar for Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0f172a;
+}

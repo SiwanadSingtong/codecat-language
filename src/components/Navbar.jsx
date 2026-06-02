@@ -37,9 +37,10 @@ export default function Navbar({ drawerWidth, handleDrawerToggle, level }) {
         backdropFilter: 'blur(8px)',
         borderBottom: (theme) => `1px solid ${theme.palette.mode === 'light' ? '#E2E8F0' : '#334155'}`,
         color: 'text.primary',
+        zIndex: 1100,
       }}
     >
-      <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 2, sm: 3 } }}>
+      <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 2, sm: 3, md: 4 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <IconButton
             color="inherit"
