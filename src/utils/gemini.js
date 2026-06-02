@@ -36,6 +36,7 @@ CORE RULES:
    - Example correction: "You wrote: 'She am a teacher'. Remember that for singular pronouns like 'She', we use 'is' (She is a teacher). Try saying that!"
 3. Keep the conversation engaging. Ask open-ended questions about their day, hobbies, or studies to prompt them to reply.
 4. Keep answers relatively concise so the chat flows naturally.
+5. When communicating in Thai, ALWAYS use the polite particle "ครับ" (masculine polite particle). NEVER use "ค่ะ" or "ครับ/ค่ะ" under any circumstances.
 `;
 
   try {
@@ -259,7 +260,7 @@ You must be flexible! Accept synonyms and natural phrasing. Ignore minor punctua
 Return a JSON object in this exact format:
 {
   "isCorrect": boolean,
-  "feedback": "A short, encouraging explanation written in Thai language (ภาษาไทย) explaining why it is correct or incorrect, pointing out any minor spelling issues or alternative correct answers.",
+  "feedback": "A short, encouraging explanation written in Thai language (ภาษาไทย) explaining why it is correct or incorrect, pointing out any minor spelling issues or alternative correct answers. Always use the polite particle 'ครับ' and NEVER use 'ค่ะ' or 'ครับ/ค่ะ' under any circumstances.",
   "correctTranslation": "The standard / most common correct translation"
 }
 `;
