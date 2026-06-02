@@ -4,14 +4,14 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function POST(request) {
   try {
-    const { word, translation, direction } = await request.json();
+    const { word, translation, direction, knownTranslation } = await request.json();
 
     if (!word || !translation || !direction) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Call Gemini to check the translation
-    const result = await checkPracticeTranslation(word, translation, direction);
+    // Call Gemini to check the translation (pass knownTranslation as fallback answer)
+    const result = await checkPracticeTranslation(word, translation, direction, knownTranslation || null);
 
     // Save to Supabase if authenticated
     const supabase = await createClient();

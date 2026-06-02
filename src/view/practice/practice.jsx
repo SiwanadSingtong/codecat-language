@@ -112,6 +112,8 @@ export default function PracticeView() {
         word: currentWord.word,
         translation: translationInput.trim(),
         direction: activeDirection,
+        // Pass the pre-fetched correct translation as fallback for when API rate limits
+        knownTranslation: currentWord.correctTranslation || null,
       });
 
       const data = response.data;
@@ -318,26 +320,30 @@ export default function PracticeView() {
         <Card sx={{
           borderRadius: 4,
           border: (theme) => `1px solid ${
-            result.isCorrect 
-              ? theme.palette.success.main 
-              : theme.palette.error.main
+            result.isCorrect === null
+              ? theme.palette.warning.main
+              : result.isCorrect
+                ? theme.palette.success.main
+                : theme.palette.error.main
           }`,
-          bgcolor: (theme) => 
-            theme.palette.mode === 'light' 
-              ? result.isCorrect ? '#F0FDF4' : '#FEF2F2'
-              : result.isCorrect ? 'rgba(21, 128, 61, 0.1)' : 'rgba(185, 28, 28, 0.1)'
+          bgcolor: (theme) =>
+            theme.palette.mode === 'light'
+              ? result.isCorrect === null ? '#FFFBEB' : result.isCorrect ? '#F0FDF4' : '#FEF2F2'
+              : result.isCorrect === null ? 'rgba(180, 120, 0, 0.1)' : result.isCorrect ? 'rgba(21, 128, 61, 0.1)' : 'rgba(185, 28, 28, 0.1)'
         }}>
           <CardContent sx={{ p: 3, display: 'flex', gap: 2, alignItems: 'flex-start' }}>
             <Box sx={{ mt: 0.5 }}>
-              {result.isCorrect ? (
+              {result.isCorrect === null ? (
+                <InfoIcon color="warning" sx={{ fontSize: 32 }} />
+              ) : result.isCorrect ? (
                 <CheckCircleIcon color="success" sx={{ fontSize: 32 }} />
               ) : (
                 <CancelIcon color="error" sx={{ fontSize: 32 }} />
               )}
             </Box>
             <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: result.isCorrect ? 'success.main' : 'error.main' }}>
-                {result.isCorrect ? 'ถูกต้องแล้ว! เก่งมากครับ' : 'คำแปลยังไม่ถูกต้อง'}
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: result.isCorrect === null ? 'warning.main' : result.isCorrect ? 'success.main' : 'error.main' }}>
+                {result.isCorrect === null ? 'ไม่สามารถตรวจคำตอบได้' : result.isCorrect ? 'ถูกต้องแล้ว! เก่งมากครับ' : 'คำแปลยังไม่ถูกต้อง'}
               </Typography>
               
               <Typography variant="body2" color="text.primary" sx={{ mb: 1.5, fontWeight: 500 }}>

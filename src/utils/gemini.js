@@ -184,14 +184,17 @@ Generate a random vocabulary word or short phrase matching the English proficien
 The practice direction is: ${direction}.
 
 - If direction is 'th-en', the "word" must be in THAI, and the student will be asked to translate it to English.
+  In this case "correctTranslation" must be the English translation of that Thai word.
 - If direction is 'en-th', the "word" must be in ENGLISH, and the student will be asked to translate it to Thai.
+  In this case "correctTranslation" must be the Thai translation of that English word.
 
-Provide a short "hint" (definition or context in English) to help the student.
+Provide a short "hint" (definition or context clue, NOT the direct answer) to help the student.
 
 Return ONLY a JSON object in this exact format:
 {
   "word": "string",
-  "hint": "string"
+  "hint": "string",
+  "correctTranslation": "string"
 }
 `;
 
@@ -232,21 +235,33 @@ function findLocalTranslation(originalWord, direction) {
 
 /**
  * Checks the user's translation for a vocabulary word.
+ * @param {string} originalWord - The word shown to the student
+ * @param {string} userTranslation - The student's translation attempt
+ * @param {string} direction - 'th-en' or 'en-th'
+ * @param {string|null} knownTranslation - Pre-fetched correct translation (used as fallback when API is unavailable)
  */
-export async function checkPracticeTranslation(originalWord, userTranslation, direction) {
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    const targetTranslation = findLocalTranslation(originalWord, direction) || originalWord;
-    const cleanUser = userTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
-    const cleanTarget = targetTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+export async function checkPracticeTranslation(originalWord, userTranslation, direction, knownTranslation = null) {
+  // Helper to grade locally using a known target translation
+  const gradeLocally = (targetTranslation, reason = '') => {
+    const cleanUser = userTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '');
+    const cleanTarget = targetTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '');
     const isCorrect = cleanUser === cleanTarget;
-    
     return {
       isCorrect,
-      feedback: isCorrect 
-        ? `ถูกต้องแล้วครับ! "${userTranslation}" เป็นคำแปลที่ถูกต้องของ "${originalWord}"` 
-        : `คำแปลยังไม่ถูกต้องครับ ลองใหม่อีกครั้งนะ`,
-      correctTranslation: targetTranslation
+      feedback: isCorrect
+        ? `ถูกต้องแล้วครับ! "${userTranslation}" เป็นคำแปลที่ถูกต้องของ "${originalWord}"${reason}`
+        : `คำแปลยังไม่ถูกต้องครับ ลองใหม่อีกครั้งนะ${reason}`,
+      correctTranslation: targetTranslation,
     };
+  };
+
+  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+    // Prefer the pre-fetched known translation, then look up in local dictionary
+    const targetTranslation =
+      knownTranslation ||
+      findLocalTranslation(originalWord, direction) ||
+      originalWord;
+    return gradeLocally(targetTranslation);
   }
 
   const prompt = `
@@ -273,22 +288,25 @@ Return a JSON object in this exact format:
   } catch (error) {
     console.error("Error in checkPracticeTranslation:", error);
     const msg = error.message || '';
-    let apiFeedback = "ไม่สามารถตรวจคำแปลผ่าน AI ได้ชั่วคราวเนื่องจากข้อผิดพลาดของระบบ ระบบจึงตรวจคะแนนให้คุณแบบเปรียบเทียบคำตรงเบื้องต้นแทนครับ";
+    let apiFeedback = ' (ระบบตรวจอัตโนมัติเนื่องจาก AI ขัดข้องชั่วคราวครับ)';
     if (msg.includes('429') || msg.includes('Quota') || msg.includes('quota')) {
-      apiFeedback = "ขณะนี้โควตาการประมวลผลของ Gemini API ได้เต็มข้อจำกัดชั่วคราวแล้ว (429 Rate Limit) ระบบจึงตรวจคะแนนให้คุณแบบเปรียบเทียบคำตรงเบื้องต้นแทนครับ";
+      apiFeedback = ' (ระบบตรวจอัตโนมัติเนื่องจาก API ถึงขีดจำกัดชั่วคราวครับ)';
     }
-    
-    const targetTranslation = findLocalTranslation(originalWord, direction) || originalWord;
-    const cleanUser = userTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
-    const cleanTarget = targetTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
-    const isCorrect = cleanUser === cleanTarget;
-    
-    const statusText = isCorrect ? "ถูกต้องแล้ว! 🎉" : "ยังไม่ถูกต้องครับ ❌";
-    
-    return {
-      isCorrect,
-      feedback: `${apiFeedback}\n\nผลลัพธ์: ${statusText}`,
-      correctTranslation: targetTranslation
-    };
+
+    // Use knownTranslation first, then local dictionary lookup, never fall back to originalWord
+    const targetTranslation =
+      knownTranslation ||
+      findLocalTranslation(originalWord, direction);
+
+    if (!targetTranslation) {
+      // We genuinely don't know the answer — tell the user we can't grade
+      return {
+        isCorrect: null,
+        feedback: 'ระบบไม่สามารถตรวจคำแปลได้ในขณะนี้เนื่องจาก AI API ใช้งานไม่ได้ชั่วคราวครับ กรุณาลองใหม่อีกครั้งในภายหลัง',
+        correctTranslation: null,
+      };
+    }
+
+    return gradeLocally(targetTranslation, apiFeedback);
   }
 }
