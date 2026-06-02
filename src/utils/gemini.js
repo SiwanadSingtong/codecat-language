@@ -210,16 +210,41 @@ Return ONLY a JSON object in this exact format:
 }
 
 /**
+ * Helper to find the correct translation in the local fallback dictionary.
+ */
+function findLocalTranslation(originalWord, direction) {
+  const cleanOriginal = originalWord.toLowerCase().trim();
+  const oppositeDirection = direction === 'th-en' ? 'en-th' : 'th-en';
+  
+  for (const level of ['Beginner', 'Intermediate', 'Advanced']) {
+    const list = LOCAL_FALLBACKS[level]?.[direction] || [];
+    const index = list.findIndex(item => item.word.toLowerCase().trim() === cleanOriginal);
+    if (index !== -1) {
+      const oppositeList = LOCAL_FALLBACKS[level]?.[oppositeDirection] || [];
+      if (oppositeList[index]) {
+        return oppositeList[index].word;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Checks the user's translation for a vocabulary word.
  */
 export async function checkPracticeTranslation(originalWord, userTranslation, direction) {
   if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    // Simple local fallback if API Key not set
-    const isCorrect = userTranslation.toLowerCase().trim() === (originalWord.toLowerCase().trim() === 'cat' ? 'แมว' : 'cat');
+    const targetTranslation = findLocalTranslation(originalWord, direction) || originalWord;
+    const cleanUser = userTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+    const cleanTarget = targetTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+    const isCorrect = cleanUser === cleanTarget;
+    
     return {
       isCorrect,
-      feedback: isCorrect ? 'Correct!' : 'Incorrect. Try again!',
-      correctTranslation: originalWord.toLowerCase().trim() === 'cat' ? 'แมว' : 'cat'
+      feedback: isCorrect 
+        ? `ถูกต้องแล้วครับ! "${userTranslation}" เป็นคำแปลที่ถูกต้องของ "${originalWord}"` 
+        : `คำแปลยังไม่ถูกต้องครับ ลองใหม่อีกครั้งนะ`,
+      correctTranslation: targetTranslation
     };
   }
 
@@ -247,20 +272,22 @@ Return a JSON object in this exact format:
   } catch (error) {
     console.error("Error in checkPracticeTranslation:", error);
     const msg = error.message || '';
-    let feedback = "ไม่สามารถตรวจคำแปลผ่าน AI ได้ชั่วคราวเนื่องจากข้อผิดพลาดของระบบ กรุณาลองใหม่อีกครั้งนะครับ";
+    let apiFeedback = "ไม่สามารถตรวจคำแปลผ่าน AI ได้ชั่วคราวเนื่องจากข้อผิดพลาดของระบบ ระบบจึงตรวจคะแนนให้คุณแบบเปรียบเทียบคำตรงเบื้องต้นแทนครับ";
     if (msg.includes('429') || msg.includes('Quota') || msg.includes('quota')) {
-      feedback = "ขณะนี้โควตาการประมวลผลของ Gemini API ได้เต็มข้อจำกัดชั่วคราวแล้ว (429 Rate Limit) ระบบจึงตรวจคะแนนให้คุณแบบเปรียบเทียบคำตรงเบื้องต้นแทนครับ";
+      apiFeedback = "ขณะนี้โควตาการประมวลผลของ Gemini API ได้เต็มข้อจำกัดชั่วคราวแล้ว (429 Rate Limit) ระบบจึงตรวจคะแนนให้คุณแบบเปรียบเทียบคำตรงเบื้องต้นแทนครับ";
     }
     
-    // Simple local text comparison fallback
+    const targetTranslation = findLocalTranslation(originalWord, direction) || originalWord;
     const cleanUser = userTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
-    const cleanTarget = originalWord.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+    const cleanTarget = targetTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
     const isCorrect = cleanUser === cleanTarget;
+    
+    const statusText = isCorrect ? "ถูกต้องแล้ว! 🎉" : "ยังไม่ถูกต้องครับ ❌";
     
     return {
       isCorrect,
-      feedback,
-      correctTranslation: originalWord
+      feedback: `${apiFeedback}\n\nผลลัพธ์: ${statusText}`,
+      correctTranslation: targetTranslation
     };
   }
 }

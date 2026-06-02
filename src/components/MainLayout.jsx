@@ -31,6 +31,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LoginIcon from '@mui/icons-material/Login';
 import PersonIcon from '@mui/icons-material/Person';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 import { ColorModeContext } from './ThemeRegistry/ThemeRegistry';
 import { createClient } from '@/utils/supabase/client';
@@ -55,6 +56,7 @@ export default function MainLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [level, setLevel] = useState('Beginner');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Load auth user and profile details
   useEffect(() => {
@@ -68,6 +70,13 @@ export default function MainLayout({ children }) {
       
       if (data) {
         setLevel(data.level || 'Beginner');
+      }
+      // Check admin: compare email against env var
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+      if (adminEmail && currentUser.email === adminEmail) {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
       }
     }
 
@@ -132,6 +141,10 @@ export default function MainLayout({ children }) {
     { text: 'สมุดคำศัพท์ส่วนตัว', icon: <VocabIcon />, path: '/vocab' },
   ];
 
+  const adminMenuItems = isAdmin
+    ? [{ text: 'แผงผู้ดูแลระบบ', icon: <AdminPanelSettingsIcon />, path: '/admin', isAdmin: true }]
+    : [];
+
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Sidebar Header */}
@@ -185,6 +198,56 @@ export default function MainLayout({ children }) {
             </ListItem>
           );
         })}
+
+        {/* Admin Menu Items */}
+        {adminMenuItems.length > 0 && (
+          <>
+            <Divider sx={{ my: 1.5, opacity: 0.15 }} />
+            {adminMenuItems.map((item) => {
+              const isActive = pathname === item.path;
+              return (
+                <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+                  <ListItemButton
+                    onClick={() => {
+                      router.push(item.path);
+                      if (isMobile) setMobileOpen(false);
+                    }}
+                    sx={{
+                      borderRadius: '10px',
+                      bgcolor: isActive
+                        ? 'linear-gradient(135deg, #4F46E5, #7C3AED)'
+                        : 'transparent',
+                      background: isActive
+                        ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)'
+                        : 'transparent',
+                      color: isActive ? '#fff' : 'text.secondary',
+                      border: isActive ? 'none' : '1px dashed',
+                      borderColor: 'divider',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #4F46E520 0%, #7C3AED20 100%)',
+                        color: 'primary.main',
+                        borderColor: 'primary.main',
+                      },
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: isActive ? '#fff' : 'primary.main', minWidth: 40 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Typography sx={{ fontSize: '0.88rem', fontWeight: 700 }}>
+                          {item.text}
+                        </Typography>
+                      }
+                    />
+                    <Chip label="Admin" size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 800 }} />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </>
+        )}
       </List>
 
       <Divider sx={{ opacity: 0.1 }} />
@@ -276,6 +339,7 @@ export default function MainLayout({ children }) {
               {pathname === '/chat' && 'คุยแชทฝึกภาษาอังกฤษกับครู AI'}
               {pathname === '/practice' && 'ฝึกสุ่มแปลคำศัพท์'}
               {pathname === '/vocab' && 'สมุดคำศัพท์ส่วนตัว'}
+              {pathname === '/admin' && 'แผงผู้ดูแลระบบ'}
             </Typography>
           </Box>
 
