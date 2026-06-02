@@ -4,6 +4,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import NextAppDirEmotionCacheProvider from './EmotionCache';
 import { getTheme } from './theme';
+import { SnackbarProvider } from 'notistack';
 
 export const ColorModeContext = React.createContext({
   toggleColorMode: () => {},
@@ -46,7 +47,13 @@ export default function ThemeRegistry({ children }) {
       <ColorModeContext.Provider value={colorMode}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          {children}
+          <SnackbarProvider 
+            maxSnack={3} 
+            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            autoHideDuration={3000}
+          >
+            {children}
+          </SnackbarProvider>
         </ThemeProvider>
       </ColorModeContext.Provider>
     </NextAppDirEmotionCacheProvider>

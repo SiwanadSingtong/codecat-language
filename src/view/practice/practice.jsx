@@ -76,7 +76,11 @@ export default function PracticeView() {
     setActiveDirection(activeDir);
     
     try {
-      const response = await axios.post('/api/practice/word', { level, direction: activeDir });
+      const response = await axios.post('/api/practice/word', {
+        level,
+        direction: activeDir,
+        exclude: currentWord?.word || ''
+      });
       const data = response.data;
       if (data && data.word) {
         setCurrentWord(data);

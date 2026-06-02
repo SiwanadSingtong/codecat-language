@@ -23,8 +23,12 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import useSWR from 'swr';
 import axios from 'axios';
+import { useSnackbar } from 'notistack';
 
 // Icons
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -33,6 +37,8 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import SchoolIcon from '@mui/icons-material/School';
 import InfoIcon from '@mui/icons-material/Info';
+import DeleteIcon from '@mui/icons-material/Delete';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 import { createClient } from '@/utils/supabase/client';
 
@@ -41,6 +47,7 @@ const fetcher = url => axios.get(url).then(res => res.data);
 
 export default function VocabularyView() {
   const supabase = createClient();
+  const { enqueueSnackbar } = useSnackbar();
 
   const [vocabList, setVocabList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,6 +62,11 @@ export default function VocabularyView() {
   const [reviewResult, setReviewResult] = useState(null);
   const [reviewScore, setReviewScore] = useState(0);
   const [reviewFinished, setReviewFinished] = useState(false);
+
+  // Delete Dialog States
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [wordToDelete, setWordToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch current user
   useEffect(() => {
@@ -158,6 +170,51 @@ export default function VocabularyView() {
       const localVocab = localStorage.getItem('guest-vocabularies');
       setVocabList(localVocab ? JSON.parse(localVocab) : []);
     }
+  };
+
+  const handleDeleteClick = (wordItem) => {
+    setWordToDelete(wordItem);
+    setDeleting(false);
+    setDeleteOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!wordToDelete) return;
+    const { id } = wordToDelete;
+    setDeleting(true);
+
+    if (user) {
+      try {
+        await axios.delete('/api/vocab', { data: { id } });
+        await mutate(); // refresh SWR cache
+        enqueueSnackbar('ลบคำศัพท์เรียบร้อยแล้ว', { variant: 'success' });
+        setDeleteOpen(false);
+      } catch (error) {
+        console.error('Error deleting vocabulary:', error);
+        enqueueSnackbar('เกิดข้อผิดพลาดในการลบคำศัพท์ กรุณาลองใหม่อีกครั้ง', { variant: 'error' });
+      } finally {
+        setDeleting(false);
+      }
+    } else {
+      try {
+        // Guest local storage deletion
+        const localVocab = localStorage.getItem('guest-vocabularies');
+        if (localVocab) {
+          const list = JSON.parse(localVocab);
+          const updatedList = list.filter(v => v.id !== id);
+          localStorage.setItem('guest-vocabularies', JSON.stringify(updatedList));
+          setVocabList(updatedList);
+        }
+        enqueueSnackbar('ลบคำศัพท์เรียบร้อยแล้ว', { variant: 'success' });
+        setDeleteOpen(false);
+      } catch (error) {
+        console.error('Error deleting guest vocabulary:', error);
+        enqueueSnackbar('เกิดข้อผิดพลาดในการลบคำศัพท์', { variant: 'error' });
+      } finally {
+        setDeleting(false);
+      }
+    }
+    setWordToDelete(null);
   };
 
   if (isLoading && user) {
@@ -375,6 +432,7 @@ export default function VocabularyView() {
                   <TableCell sx={{ fontWeight: 700 }}>คำศัพท์ตั้งต้น</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>คำแปลที่ถูกต้อง</TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="center">จำนวนครั้งที่ตอบถูก</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }} align="center">จัดการ</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -397,11 +455,21 @@ export default function VocabularyView() {
                         sx={{ fontWeight: 500 }}
                       />
                     </TableCell>
+                    <TableCell align="center">
+                      <IconButton 
+                        color="error" 
+                        size="small" 
+                        onClick={() => handleDeleteClick(row)}
+                        aria-label="ลบคำศัพท์"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filteredVocab.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                       ไม่พบคำศัพท์ที่ตรงกับการค้นหา
                     </TableCell>
                   </TableRow>
@@ -411,6 +479,108 @@ export default function VocabularyView() {
           </TableContainer>
         </Box>
       )}
+
+      {/* Custom Delete Dialog */}
+      <Dialog
+        open={deleteOpen}
+        onClose={() => {
+          if (!deleting) setDeleteOpen(false);
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: '16px',
+              p: 3,
+              maxWidth: 440,
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+            }
+          }
+        }}
+      >
+        <DialogContent sx={{ pb: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          {/* Warning Icon Container */}
+          <Box
+            sx={{
+              width: 64,
+              height: 64,
+              borderRadius: '50%',
+              bgcolor: '#FEF2F2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 1,
+            }}
+          >
+            <WarningAmberIcon sx={{ color: '#DC2626', fontSize: 36 }} />
+          </Box>
+
+          {/* Title */}
+          <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
+            ยืนยันการลบรายการ
+          </Typography>
+
+          {/* Description text */}
+          <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
+            คุณต้องการลบ{' '}
+            <Box component="span" sx={{ color: '#DC2626', fontWeight: 700 }}>
+              {wordToDelete?.word}
+            </Box>{' '}
+            ออกจากระบบ?
+            <br />
+            <Box component="span" sx={{ fontSize: '0.9rem', opacity: 0.8 }}>
+              การกระทำนี้ไม่สามารถย้อนกลับได้
+            </Box>
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ justifyContent: 'center', gap: 2, px: 3, pb: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setDeleteOpen(false)}
+            disabled={deleting}
+            sx={{
+              borderColor: '#D1D5DB',
+              color: '#4B5563',
+              borderRadius: '10px',
+              px: 4,
+              py: 1,
+              fontWeight: 600,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: '#9CA3AF',
+                bgcolor: '#F9FAFB',
+              }
+            }}
+          >
+            ยกเลิก
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={deleting}
+            startIcon={deleting ? <CircularProgress size={18} color="inherit" /> : <DeleteIcon />}
+            sx={{
+              bgcolor: '#DC2626',
+              color: '#FFFFFF',
+              borderRadius: '10px',
+              px: 4,
+              py: 1,
+              fontWeight: 600,
+              textTransform: 'none',
+              boxShadow: 'none',
+              '&:hover': {
+                bgcolor: '#B91C1C',
+                boxShadow: 'none',
+              }
+            }}
+          >
+            {deleting ? 'กำลังลบ...' : 'ยืนยันการลบ'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
