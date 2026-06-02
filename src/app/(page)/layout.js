@@ -125,7 +125,7 @@ export default function PageLayout({ children }) {
           flexGrow: 1,
           p: { xs: 2, sm: 3, md: 4 },
           width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
+          // ml: { md: `${drawerWidth}px` },
           mt: '64px',
           minHeight: 'calc(100vh - 64px)',
           display: 'flex',
