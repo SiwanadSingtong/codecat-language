@@ -39,7 +39,7 @@ async function pingGeminiAPI() {
   const start = Date.now();
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
     await model.generateContent('ping');
     const latencyMs = Date.now() - start;
     return {
@@ -100,7 +100,7 @@ export async function GET(request) {
   return NextResponse.json({
     keyConfigured,
     maskedKey,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.5-flash-lite',
     ping: pingResult,
     usage: usageStats,
     serverTime: new Date().toISOString(),

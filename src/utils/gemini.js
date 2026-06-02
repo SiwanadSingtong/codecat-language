@@ -7,7 +7,7 @@ const genAI = new GoogleGenerativeAI(apiKey || 'dummy-key-to-prevent-crash-durin
 // Helper to get Gemini Generative Model
 function getModel(systemInstruction, isJson = false) {
   return genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.5-flash-lite',
     systemInstruction,
     ...(isJson ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
   });
