@@ -145,6 +145,47 @@ export default function PracticeView() {
           });
         }
         localStorage.setItem('guest-vocabularies', JSON.stringify(vocabList));
+
+        // Track guest activity
+        if (typeof window !== 'undefined') {
+          const today = new Date().toISOString().split('T')[0];
+          const historyKey = 'guest-activity-history';
+          const historyData = localStorage.getItem(historyKey);
+          let history = historyData ? JSON.parse(historyData) : {};
+          if (!history[today]) {
+            history[today] = { practices: 0, reviews: 0 };
+          }
+          history[today].practices = (history[today].practices || 0) + 1;
+          localStorage.setItem(historyKey, JSON.stringify(history));
+
+          const statsKey = 'guest-stats';
+          const statsData = localStorage.getItem(statsKey);
+          let stats = statsData ? JSON.parse(statsData) : { xp: 0, streak_count: 0, last_active_date: null };
+          stats.xp = (stats.xp || 0) + 10;
+
+          const lastActiveDate = stats.last_active_date;
+          const todayDate = new Date(today);
+          const yesterdayDate = new Date(todayDate);
+          yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+          const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
+
+          if (!lastActiveDate) {
+            stats.streak_count = 1;
+          } else if (lastActiveDate === today) {
+            // Keep streak
+          } else if (lastActiveDate === yesterdayStr) {
+            stats.streak_count = (stats.streak_count || 0) + 1;
+          } else {
+            stats.streak_count = 1;
+          }
+          stats.last_active_date = today;
+          localStorage.setItem(statsKey, JSON.stringify(stats));
+        }
+      } else if (user && data) {
+        // Track registered user activity
+        axios.post('/api/user/stats', { type: 'practice' }).catch((err) => {
+          console.error('Failed to log practice activity to API:', err);
+        });
       }
     } catch (error) {
       console.error("Error checking translation:", error);

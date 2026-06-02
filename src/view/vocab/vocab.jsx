@@ -26,6 +26,10 @@ import IconButton from '@mui/material/IconButton';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import useSWR from 'swr';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
@@ -64,6 +68,7 @@ export default function VocabularyView() {
   const [reviewResult, setReviewResult] = useState(null);
   const [reviewScore, setReviewScore] = useState(0);
   const [reviewFinished, setReviewFinished] = useState(false);
+  const [reviewCountLimit, setReviewCountLimit] = useState(5);
 
   // Delete Dialog States
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -113,8 +118,12 @@ export default function VocabularyView() {
   const startReview = () => {
     if (vocabList.length === 0) return;
     
-    const shuffled = [...vocabList].sort(() => 0.5 - Math.random());
-    const queue = shuffled.slice(0, 5);
+    // SRS priority: sort by correct_count ascending (words with fewer correct answers first)
+    const sorted = [...vocabList].sort((a, b) => (a.correct_count || 0) - (b.correct_count || 0));
+    // Soft randomness: grab a larger pool of lowest correct_count items, shuffle them, and pick the limit
+    const candidates = sorted.slice(0, reviewCountLimit * 3);
+    const shuffledCandidates = candidates.sort(() => 0.5 - Math.random());
+    const queue = shuffledCandidates.slice(0, reviewCountLimit);
     
     setReviewQueue(queue);
     setReviewIdx(0);
@@ -152,6 +161,49 @@ export default function VocabularyView() {
         setVocabList(prev => prev.map(v => 
           v.id === wordItem.id ? { ...v, correct_count: v.correct_count + 1 } : v
         ));
+      }
+
+      // Save locally if guest or post to API if logged in
+      if (!user && data) {
+        if (typeof window !== 'undefined') {
+          const today = new Date().toISOString().split('T')[0];
+          const historyKey = 'guest-activity-history';
+          const historyData = localStorage.getItem(historyKey);
+          let history = historyData ? JSON.parse(historyData) : {};
+          if (!history[today]) {
+            history[today] = { practices: 0, reviews: 0 };
+          }
+          history[today].reviews = (history[today].reviews || 0) + 1;
+          localStorage.setItem(historyKey, JSON.stringify(history));
+
+          const statsKey = 'guest-stats';
+          const statsData = localStorage.getItem(statsKey);
+          let stats = statsData ? JSON.parse(statsData) : { xp: 0, streak_count: 0, last_active_date: null };
+          stats.xp = (stats.xp || 0) + 15;
+
+          const lastActiveDate = stats.last_active_date;
+          const todayDate = new Date(today);
+          const yesterdayDate = new Date(todayDate);
+          yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+          const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
+
+          if (!lastActiveDate) {
+            stats.streak_count = 1;
+          } else if (lastActiveDate === today) {
+            // Keep streak
+          } else if (lastActiveDate === yesterdayStr) {
+            stats.streak_count = (stats.streak_count || 0) + 1;
+          } else {
+            stats.streak_count = 1;
+          }
+          stats.last_active_date = today;
+          localStorage.setItem(statsKey, JSON.stringify(stats));
+        }
+      } else if (user && data) {
+        // Track registered user activity
+        axios.post('/api/user/stats', { type: 'review' }).catch((err) => {
+          console.error('Failed to log review activity to API:', err);
+        });
       }
     } catch (error) {
       console.error("Error checking review translation:", error);
@@ -379,15 +431,31 @@ export default function VocabularyView() {
           </Typography>
         </Box>
         {vocabList.length > 0 && (
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<PlayArrowIcon />}
-            onClick={startReview}
-            sx={{ fontWeight: 600, borderRadius: '8px' }}
-          >
-            เริ่มเซสชันทบทวนคำศัพท์ (สุ่ม 5 คำ)
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <FormControl size="small" sx={{ minWidth: 110 }}>
+              <InputLabel id="review-count-select-label">จำนวนคำ</InputLabel>
+              <Select
+                labelId="review-count-select-label"
+                value={reviewCountLimit}
+                label="จำนวนคำ"
+                onChange={(e) => setReviewCountLimit(Number(e.target.value))}
+                sx={{ borderRadius: '8px' }}
+              >
+                <MenuItem value={5}>5 คำ</MenuItem>
+                <MenuItem value={10}>10 คำ</MenuItem>
+                <MenuItem value={15}>15 คำ</MenuItem>
+              </Select>
+            </FormControl>
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<PlayArrowIcon />}
+              onClick={startReview}
+              sx={{ fontWeight: 600, borderRadius: '8px', py: 1 }}
+            >
+              เริ่มเซสชันทบทวนศัพท์
+            </Button>
+          </Box>
         )}
       </Box>
 

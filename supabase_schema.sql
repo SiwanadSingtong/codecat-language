@@ -97,3 +97,38 @@ CREATE POLICY "Users can insert their own chat messages"
 CREATE POLICY "Users can delete their own chat messages" 
     ON public.chat_messages FOR DELETE 
     USING (auth.uid() = user_id);
+
+
+-- 4. Upgrade Profiles Table with Gamification Fields
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_active_date DATE DEFAULT NULL;
+
+
+-- 5. Create Daily Activity Logs Table
+CREATE TABLE IF NOT EXISTS public.activity_logs (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+    activity_date DATE DEFAULT CURRENT_DATE NOT NULL,
+    practices INTEGER DEFAULT 0,
+    reviews INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    UNIQUE(user_id, activity_date)
+);
+
+-- Enable RLS on activity_logs
+ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+
+-- Activity Logs Policies
+CREATE POLICY "Users can view their own activity logs" 
+    ON public.activity_logs FOR SELECT 
+    USING (auth.uid() = user_id);
+    
+CREATE POLICY "Users can insert their own activity logs" 
+    ON public.activity_logs FOR INSERT 
+    WITH CHECK (auth.uid() = user_id);
+    
+CREATE POLICY "Users can update their own activity logs" 
+    ON public.activity_logs FOR UPDATE 
+    USING (auth.uid() = user_id);
+
