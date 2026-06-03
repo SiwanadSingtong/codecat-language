@@ -1,12 +1,36 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize the Gemini API client
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(apiKey || 'dummy-key-to-prevent-crash-during-build');
+export const usageStats = {
+  totalRequests: 0,
+  successCount: 0,
+  errorCount: 0,
+  quotaErrors: 0,
+  lastError: null,
+  lastErrorTime: null,
+  lastSuccess: null,
+};
 
-// Helper to get Gemini Generative Model
+export function logGeminiRequest(success, error = null) {
+  usageStats.totalRequests++;
+  if (success) {
+    usageStats.successCount++;
+    usageStats.lastSuccess = new Date().toISOString();
+  } else {
+    usageStats.errorCount++;
+    const errMsg = error?.message || String(error || 'Unknown error');
+    usageStats.lastError = errMsg;
+    usageStats.lastErrorTime = new Date().toISOString();
+    if (errMsg.includes('429') || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('rate limit')) {
+      usageStats.quotaErrors++;
+    }
+  }
+}
+
+// Helper to get Gemini Generative Model with dynamic API key resolution
 function getModel(systemInstruction, isJson = false) {
-  return genAI.getGenerativeModel({
+  const currentKey = process.env.GEMINI_API_KEY;
+  const genAIInstance = new GoogleGenerativeAI(currentKey || 'dummy-key-to-prevent-crash-during-build');
+  return genAIInstance.getGenerativeModel({
     model: 'gemini-2.5-flash-lite',
     systemInstruction,
     ...(isJson ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
@@ -18,8 +42,9 @@ function getModel(systemInstruction, isJson = false) {
  * Automatically checks and corrects grammar, especially "is am are".
  */
 export async function getTeacherResponse(history, userLevel = 'Beginner') {
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    return "API Key is not configured. Please add GEMINI_API_KEY to your .env.local file.";
+  const currentKey = process.env.GEMINI_API_KEY;
+  if (!currentKey || currentKey === 'your_gemini_api_key_here') {
+    return "API Key is not configured. Please add GEMINI_API_KEY to your .env file.";
   }
 
   const systemInstruction = `
@@ -64,8 +89,11 @@ CORE RULES:
     });
 
     const result = await chat.sendMessage(userMessage.parts[0].text);
-    return result.response.text();
+    const responseText = result.response.text();
+    logGeminiRequest(true);
+    return responseText;
   } catch (error) {
+    logGeminiRequest(false, error);
     console.error("Error in getTeacherResponse:", error);
     const msg = error.message || '';
     if (msg.includes('429') || msg.includes('Quota') || msg.includes('quota')) {
@@ -423,7 +451,8 @@ export async function generatePracticeWord(level = 'Beginner', direction = 'th-e
     return chosenList[Math.floor(Math.random() * chosenList.length)];
   };
 
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+  const currentKey = process.env.GEMINI_API_KEY;
+  if (!currentKey || currentKey === 'your_gemini_api_key_here') {
     return getLocalFallback();
   }
 
@@ -451,11 +480,13 @@ Return ONLY a JSON object in this exact format:
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     const data = JSON.parse(text);
+    logGeminiRequest(true);
     if (data && data.word && data.word.toLowerCase().trim() !== cleanExclude) {
       return data;
     }
     return getLocalFallback();
   } catch (error) {
+    logGeminiRequest(false, error);
     console.error("Error in generatePracticeWord:", error);
     return getLocalFallback();
   }
@@ -542,7 +573,8 @@ export async function checkPracticeTranslation(originalWord, userTranslation, di
   };
 
   // --- No API key: use knownTranslation → local dict (no MyMemory call) ---
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+  const currentKey = process.env.GEMINI_API_KEY;
+  if (!currentKey || currentKey === 'your_gemini_api_key_here') {
     const target = knownTranslation || findLocalTranslation(originalWord, direction) || originalWord;
     return gradeLocally(target);
   }
@@ -568,8 +600,11 @@ Return a JSON object in this exact format:
     const model = getModel("You are a language teacher grading a translation test.", true);
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+    logGeminiRequest(true);
+    return parsed;
   } catch (error) {
+    logGeminiRequest(false, error);
     console.error("Error in checkPracticeTranslation:", error);
     const msg = error.message || '';
     const isRateLimit = msg.includes('429') || msg.includes('Quota') || msg.includes('quota');

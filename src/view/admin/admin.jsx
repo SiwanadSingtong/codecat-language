@@ -114,21 +114,25 @@ function MetricRow({ label, value, sub, mono }) {
         borderBottom: (theme) =>
           `1px solid ${theme.palette.mode === 'dark' ? '#1E293B' : '#F1F5F9'}`,
         '&:last-child': { borderBottom: 'none' },
+        gap: 2,
       }}
     >
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="text.secondary" sx={{ minWidth: '80px', flexShrink: 0 }}>
         {label}
       </Typography>
-      <Box sx={{ textAlign: 'right' }}>
+      <Box sx={{ textAlign: 'right', minWidth: 0, flexGrow: 1 }}>
         <Typography
           variant="body2"
           fontWeight={600}
-          sx={{ fontFamily: mono ? 'monospace' : 'inherit' }}
+          sx={{ 
+            fontFamily: mono ? 'monospace' : 'inherit',
+            wordBreak: 'break-all',
+          }}
         >
           {value ?? '-'}
         </Typography>
         {sub && (
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
             {sub}
           </Typography>
         )}
@@ -222,14 +226,14 @@ export default function AdminView() {
 
   if (forbidden) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 3, textAlign: 'center' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 3, textAlign: 'center', px: 2 }}>
         <Box sx={{ p: 3, borderRadius: '50%', bgcolor: 'error.light', display: 'inline-flex' }}>
           <LockIcon sx={{ fontSize: 48, color: 'error.main' }} />
         </Box>
         <Typography variant="h5" fontWeight={700}>ไม่มีสิทธิ์เข้าถึง</Typography>
         <Typography color="text.secondary">
           หน้านี้สำหรับผู้ดูแลระบบเท่านั้น<br />
-          กรุณาตั้งค่า <code>ADMIN_EMAIL</code> ใน .env.local และเข้าสู่ระบบด้วยอีเมลดังกล่าว
+          กรุณาตั้งค่า <code>ADMIN_EMAIL</code> ใน <code>.env</code> และเข้าสู่ระบบด้วยอีเมลดังกล่าว
         </Typography>
       </Box>
     );
@@ -243,7 +247,14 @@ export default function AdminView() {
   return (
     <Box>
       {/* ── Header ── */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4, flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: { xs: 'flex-start', sm: 'center' }, 
+        justifyContent: 'space-between', 
+        mb: 4, 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        gap: 2 
+      }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box sx={{ p: 1, borderRadius: '12px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', display: 'inline-flex' }}>
             <AdminPanelSettingsIcon sx={{ color: '#fff', fontSize: 28 }} />
@@ -258,36 +269,47 @@ export default function AdminView() {
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1.5, 
+          width: { xs: '100%', sm: 'auto' }, 
+          justifyContent: { xs: 'space-between', sm: 'flex-end' },
+          borderTop: { xs: '1px solid', sm: 'none' },
+          borderColor: 'divider',
+          pt: { xs: 1.5, sm: 0 }
+        }}>
           {lastRefresh && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <AccessTimeIcon sx={{ fontSize: 14 }} />
               อัปเดต: {lastRefresh.toLocaleTimeString('th-TH')}
             </Typography>
           )}
-          <Tooltip title={autoRefresh ? 'ปิดรีเฟรชอัตโนมัติ' : 'เปิดรีเฟรชอัตโนมัติ (ทุก 30 วิ)'}>
-            <Chip
-              label={autoRefresh ? 'Auto ON' : 'Auto OFF'}
-              size="small"
-              color={autoRefresh ? 'success' : 'default'}
-              onClick={() => setAutoRefresh((v) => !v)}
-              sx={{ cursor: 'pointer', fontWeight: 600 }}
-            />
-          </Tooltip>
-          <IconButton
-            onClick={() => fetchStatus(false)}
-            disabled={loading || pinging}
-            sx={{ bgcolor: 'action.hover', borderRadius: '10px' }}
-          >
-            <RefreshIcon sx={{ fontSize: 20 }} />
-          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title={autoRefresh ? 'ปิดรีเฟรชอัตโนมัติ' : 'เปิดรีเฟรชอัตโนมัติ (ทุก 30 วิ)'}>
+              <Chip
+                label={autoRefresh ? 'Auto ON' : 'Auto OFF'}
+                size="small"
+                color={autoRefresh ? 'success' : 'default'}
+                onClick={() => setAutoRefresh((v) => !v)}
+                sx={{ cursor: 'pointer', fontWeight: 600 }}
+              />
+            </Tooltip>
+            <IconButton
+              onClick={() => fetchStatus(false)}
+              disabled={loading || pinging}
+              sx={{ bgcolor: 'action.hover', borderRadius: '10px' }}
+            >
+              <RefreshIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Box>
         </Box>
       </Box>
 
       {/* ── Key not configured warning ── */}
       {!keyOk && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }}>
-          <strong>GEMINI_API_KEY ยังไม่ได้ตั้งค่า!</strong> กรุณาเพิ่มใน .env.local แล้ว restart เซิร์ฟเวอร์
+          <strong>GEMINI_API_KEY ยังไม่ได้ตั้งค่า!</strong> กรุณาเพิ่มใน <code>.env</code> แล้ว restart เซิร์ฟเวอร์
         </Alert>
       )}
 
@@ -404,7 +426,7 @@ export default function AdminView() {
             accent="linear-gradient(90deg, #F59E0B, #FBBF24)"
           >
             <Alert severity="info" sx={{ mb: 2, borderRadius: '8px' }}>
-              ระบบใช้ <strong>Gemini 2.5 Flash</strong> ผ่าน Google AI Studio (Free Tier)
+              ระบบใช้ <strong>Gemini 2.5 Flash Lite</strong> ผ่าน Google AI Studio (Free Tier)
             </Alert>
             <MetricRow label="RPM (Requests/นาที)" value="15 req/min" sub="Free tier limit" />
             <MetricRow label="RPD (Requests/วัน)" value="1,500 req/day" sub="Free tier limit" />
@@ -483,7 +505,7 @@ export default function AdminView() {
               <Divider sx={{ mb: 2, opacity: 0.3 }} />
               <Typography variant="body2" color="text.secondary" component="div">
                 <ol style={{ paddingLeft: 20, margin: 0, lineHeight: 2.2 }}>
-                  <li>เปิดไฟล์ <code>.env.local</code> ในรูตโปรเจกต์</li>
+                  <li>เปิดไฟล์ <code>.env</code> ในรูตโปรเจกต์</li>
                   <li>
                     เพิ่มบรรทัด:{' '}
                     <code style={{ background: '#4F46E510', padding: '2px 6px', borderRadius: 4 }}>

@@ -2,20 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Track in-memory stats (resets on cold start/redeploy)
-// For production you'd store these in a DB or Redis
-const usageStats = {
-  totalRequests: 0,
-  successCount: 0,
-  errorCount: 0,
-  quotaErrors: 0,
-  lastError: null,
-  lastErrorTime: null,
-  lastSuccess: null,
-  recentRequests: [], // keep last 20
-};
+import { usageStats, logGeminiRequest } from '@/utils/gemini';
 
-// Export so other routes can update it
 export { usageStats };
 
 async function isAdmin(supabase) {
@@ -42,6 +30,7 @@ async function pingGeminiAPI() {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
     await model.generateContent('ping');
     const latencyMs = Date.now() - start;
+    logGeminiRequest(true);
     return {
       status: 'ok',
       message: 'API ทำงานปกติ',
@@ -50,6 +39,7 @@ async function pingGeminiAPI() {
   } catch (error) {
     const latencyMs = Date.now() - start;
     const msg = error.message || '';
+    logGeminiRequest(false, error);
 
     if (msg.includes('429') || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('rate limit')) {
       return {
