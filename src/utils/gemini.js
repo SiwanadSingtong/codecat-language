@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export const usageStats = {
   totalRequests: 0,
   successCount: 0,
@@ -26,25 +24,50 @@ export function logGeminiRequest(success, error = null) {
   }
 }
 
-// Helper to get Gemini Generative Model with dynamic API key resolution
-function getModel(systemInstruction, isJson = false) {
-  const currentKey = process.env.GEMINI_API_KEY;
-  const genAIInstance = new GoogleGenerativeAI(currentKey || 'dummy-key-to-prevent-crash-during-build');
-  return genAIInstance.getGenerativeModel({
-    model: 'gemini-2.5-flash-lite',
-    systemInstruction,
-    ...(isJson ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
+// Helper to call DeepSeek Chat completion API using native fetch
+async function callDeepSeek(messages, systemInstruction) {
+  const currentKey = process.env.DEEPSEEK_API_KEY;
+  if (!currentKey) {
+    throw new Error("DEEPSEEK_API_KEY is not defined");
+  }
+
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${currentKey}`
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: systemInstruction },
+        ...messages
+      ],
+      temperature: 0.7,
+      stream: false
+    })
   });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  if (data?.choices?.[0]?.message?.content) {
+    return data.choices[0].message.content;
+  }
+  throw new Error("Invalid response format from DeepSeek API");
 }
 
 /**
- * Gets a conversational response from the AI English Teacher.
+ * Gets a conversational response from the AI English Teacher using DeepSeek.
  * Automatically checks and corrects grammar, especially "is am are".
  */
 export async function getTeacherResponse(history, userLevel = 'Beginner') {
-  const currentKey = process.env.GEMINI_API_KEY;
-  if (!currentKey || currentKey === 'your_gemini_api_key_here') {
-    return "API Key is not configured. Please add GEMINI_API_KEY to your .env file.";
+  const currentKey = process.env.DEEPSEEK_API_KEY;
+  if (!currentKey || currentKey === 'your_deepseek_api_key_here') {
+    return "API Key สำหรับ DeepSeek ยังไม่ได้กำหนดค่า กรุณาเพิ่ม DEEPSEEK_API_KEY ในไฟล์ .env ของคุณครับ";
   }
 
   const systemInstruction = `
@@ -65,42 +88,25 @@ CORE RULES:
 `;
 
   try {
-    const model = getModel(systemInstruction, false);
-    
-    // Transform history structure to match Gemini API expect format:
-    // [{ role: 'user'|'model', parts: [{ text: '...' }] }]
-    const formattedHistory = history.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }]
+    // Transform history structure to match DeepSeek/OpenAI API:
+    // [{ role: 'user'|'assistant', content: '...' }]
+    const messages = history.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.content
     }));
 
-    // Extract the latest user message to send as the prompt
-    const userMessage = formattedHistory[formattedHistory.length - 1];
-    const prevHistory = formattedHistory.slice(0, -1);
-
-    // CRITICAL: Gemini startChat history MUST start with role 'user'.
-    // If the first message in prevHistory is from the model, we filter out leading model messages.
-    while (prevHistory.length > 0 && prevHistory[0].role === 'model') {
-      prevHistory.shift();
-    }
-
-    const chat = model.startChat({
-      history: prevHistory,
-    });
-
-    const result = await chat.sendMessage(userMessage.parts[0].text);
-    const responseText = result.response.text();
+    const responseText = await callDeepSeek(messages, systemInstruction);
     logGeminiRequest(true);
     return responseText;
   } catch (error) {
     logGeminiRequest(false, error);
     console.error("Error in getTeacherResponse:", error);
     const msg = error.message || '';
-    if (msg.includes('429') || msg.includes('Quota') || msg.includes('quota')) {
-      return `ขออภัยเป็นอย่างสูงครับ พอดีขณะนี้โควตาการสนทนาของ Gemini API ฟรีได้เต็มข้อจำกัดแล้ว (429 Rate Limit Exceeded) กรุณาเว้นระยะห่างสักครู่แล้วลองส่งข้อความใหม่อีกครั้ง หรือตรวจสอบและปรับปรุงคีย์ API ในไฟล์ .env นะครับ 🐾`;
+    if (msg.includes('429') || msg.includes('Quota') || msg.includes('quota') || msg.includes('Rate Limit') || msg.includes('rate limit')) {
+      return `ขออภัยเป็นอย่างสูงครับ พอดีขณะนี้โควตาการสนทนาของ DeepSeek API ได้เต็มข้อจำกัดแล้ว (429 Rate Limit Exceeded) กรุณาเว้นระยะห่างสักครู่แล้วลองส่งข้อความใหม่อีกครั้ง หรือตรวจสอบและปรับปรุงคีย์ API ในไฟล์ .env นะครับ 🐾`;
     }
-    if (msg.includes('API key not valid') || msg.includes('API_KEY_INVALID')) {
-      return `ขออภัยครับ คีย์ Gemini API ของคุณไม่ถูกต้องหรือยังไม่ได้เปิดใช้งาน กรุณาตรวจสอบและกรอกคีย์ที่ถูกต้องในไฟล์ .env นะครับ 🐾`;
+    if (msg.includes('API key not valid') || msg.includes('API_KEY_INVALID') || msg.includes('401')) {
+      return `ขออภัยครับ คีย์ DeepSeek API ของคุณไม่ถูกต้องหรือยังไม่ได้เปิดใช้งาน กรุณาตรวจสอบและกรอกคีย์ที่ถูกต้องในไฟล์ .env นะครับ 🐾`;
     }
     return `คุณครู AI ขออภัยด้วยครับ พอดีเกิดข้อขัดข้องชั่วคราวในการประมวลผลข้อความ: ${msg} กรุณาลองส่งใหม่อีกครั้งนะครับ! 🐾`;
   }
@@ -436,60 +442,42 @@ const LOCAL_FALLBACKS = {
 };
 
 /**
- * Generates a random vocabulary word/phrase matching the user's level.
+ * Generates a batch of random vocabulary words/phrases matching the user's level without using AI.
+ * Sourced from LOCAL_FALLBACKS and enriched with MyMemory translation API.
  * @param {string} level - 'Beginner' | 'Intermediate' | 'Advanced'
  * @param {string} direction - 'th-en' | 'en-th'
- * @param {string} exclude - Word to avoid to prevent duplicates
+ * @param {number} count - Number of words to generate in the batch (default 10)
  */
-export async function generatePracticeWord(level = 'Beginner', direction = 'th-en', exclude = '') {
-  const cleanExclude = typeof exclude === 'string' ? exclude.toLowerCase().trim() : '';
+export async function generatePracticeWordsBatch(level = 'Beginner', direction = 'th-en', count = 10) {
+  const list = LOCAL_FALLBACKS[level]?.[direction] || LOCAL_FALLBACKS['Beginner']['th-en'];
+  const shuffled = [...list].sort(() => 0.5 - Math.random());
+  const selected = shuffled.slice(0, count);
 
-  const getLocalFallback = () => {
-    const list = LOCAL_FALLBACKS[level]?.[direction] || LOCAL_FALLBACKS['Beginner']['th-en'];
-    const filtered = list.filter(item => item.word.toLowerCase().trim() !== cleanExclude);
-    const chosenList = filtered.length > 0 ? filtered : list;
-    return chosenList[Math.floor(Math.random() * chosenList.length)];
-  };
-
-  const currentKey = process.env.GEMINI_API_KEY;
-  if (!currentKey || currentKey === 'your_gemini_api_key_here') {
-    return getLocalFallback();
-  }
-
-  const prompt = `
-Generate a random vocabulary word or short phrase matching the English proficiency level: ${level}.
-The practice direction is: ${direction}.
-
-- If direction is 'th-en', the "word" must be in THAI, and the student will be asked to translate it to English.
-  In this case "correctTranslation" must be the English translation of that Thai word.
-- If direction is 'en-th', the "word" must be in ENGLISH, and the student will be asked to translate it to Thai.
-  In this case "correctTranslation" must be the Thai translation of that English word.
-
-Provide a short "hint" (definition or context clue, NOT the direct answer) to help the student.
-
-Return ONLY a JSON object in this exact format:
-{
-  "word": "string",
-  "hint": "string",
-  "correctTranslation": "string"
-}
-`;
-
-  try {
-    const model = getModel("You are a helpful language generator.", true);
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const data = JSON.parse(text);
-    logGeminiRequest(true);
-    if (data && data.word && data.word.toLowerCase().trim() !== cleanExclude) {
-      return data;
+  const batch = await Promise.all(selected.map(async (item) => {
+    const acceptable = [item.correctTranslation.toLowerCase().trim()];
+    
+    // Call MyMemory translation API as the free vocabulary API to get additional translations (limit 5000 chars/day)
+    try {
+      const myMemoryResult = await getMyMemoryTranslation(item.word, direction);
+      if (myMemoryResult) {
+        const cleanResult = myMemoryResult.toLowerCase().trim();
+        if (!acceptable.includes(cleanResult)) {
+          acceptable.push(cleanResult);
+        }
+      }
+    } catch (err) {
+      console.error("MyMemory translation failed for word:", item.word, err);
     }
-    return getLocalFallback();
-  } catch (error) {
-    logGeminiRequest(false, error);
-    console.error("Error in generatePracticeWord:", error);
-    return getLocalFallback();
-  }
+
+    return {
+      word: item.word,
+      hint: item.hint,
+      correctTranslation: item.correctTranslation,
+      acceptableTranslations: acceptable
+    };
+  }));
+
+  return batch;
 }
 
 /**
@@ -549,8 +537,8 @@ async function getMyMemoryTranslation(word, direction) {
 }
 
 /**
- * Checks the user's translation for a vocabulary word.
- * Fallback chain: Gemini API → knownTranslation → local dict → MyMemory API
+ * Checks the user's translation for a vocabulary word without using AI.
+ * Fallback chain: knownTranslation → local dict → MyMemory API
  *
  * @param {string} originalWord       - The word shown to the student
  * @param {string} userTranslation    - The student's translation attempt
@@ -572,69 +560,28 @@ export async function checkPracticeTranslation(originalWord, userTranslation, di
     };
   };
 
-  // --- No API key: use knownTranslation → local dict (no MyMemory call) ---
-  const currentKey = process.env.GEMINI_API_KEY;
-  if (!currentKey || currentKey === 'your_gemini_api_key_here') {
-    const target = knownTranslation || findLocalTranslation(originalWord, direction) || originalWord;
-    return gradeLocally(target);
+  // 1. Check knownTranslation first
+  if (knownTranslation) {
+    return gradeLocally(knownTranslation);
   }
 
-  // --- Gemini API available: try primary check ---
-  const prompt = `
-Evaluate the translation.
-Original word/phrase: "${originalWord}"
-User's translation: "${userTranslation}"
-Direction: "${direction}" (if 'th-en', they translated Thai to English. If 'en-th', they translated English to Thai).
-
-You must be flexible! Accept synonyms and natural phrasing. Ignore minor punctuation or capitalization differences.
-
-Return a JSON object in this exact format:
-{
-  "isCorrect": boolean,
-  "feedback": "A short, encouraging explanation written in Thai language (ภาษาไทย) explaining why it is correct or incorrect, pointing out any minor spelling issues or alternative correct answers. Always use the polite particle 'ครับ' and NEVER use 'ค่ะ' or 'ครับ/ค่ะ' under any circumstances.",
-  "correctTranslation": "The standard / most common correct translation"
-}
-`;
-
-  try {
-    const model = getModel("You are a language teacher grading a translation test.", true);
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const parsed = JSON.parse(text);
-    logGeminiRequest(true);
-    return parsed;
-  } catch (error) {
-    logGeminiRequest(false, error);
-    console.error("Error in checkPracticeTranslation:", error);
-    const msg = error.message || '';
-    const isRateLimit = msg.includes('429') || msg.includes('Quota') || msg.includes('quota');
-    const note = isRateLimit
-      ? ' (ระบบตรวจอัตโนมัติ เนื่องจาก API ถึงขีดจำกัดชั่วคราวครับ)'
-      : ' (ระบบตรวจอัตโนมัติ เนื่องจาก AI ขัดข้องชั่วคราวครับ)';
-
-    // Fallback tier 1: knownTranslation (pre-fetched at word generation time)
-    if (knownTranslation) {
-      return gradeLocally(knownTranslation, note);
-    }
-
-    // Fallback tier 2: local dictionary lookup
-    const localMatch = findLocalTranslation(originalWord, direction);
-    if (localMatch) {
-      return gradeLocally(localMatch, note);
-    }
-
-    // Fallback tier 3: MyMemory free translation API
-    console.log('Attempting MyMemory fallback for:', originalWord);
-    const myMemoryResult = await getMyMemoryTranslation(originalWord, direction);
-    if (myMemoryResult) {
-      return gradeLocally(myMemoryResult, note + ' (ใช้ MyMemory API ช่วยตรวจครับ)');
-    }
-
-    // All fallbacks exhausted — cannot grade
-    return {
-      isCorrect: null,
-      feedback: `ขออภัยครับ ระบบไม่สามารถตรวจคำแปลได้ในขณะนี้ เนื่องจาก AI API ใช้งานไม่ได้ชั่วคราวครับ กรุณาลองใหม่อีกครั้ง`,
-      correctTranslation: null,
-    };
+  // 2. Check local dictionary lookup
+  const localMatch = findLocalTranslation(originalWord, direction);
+  if (localMatch) {
+    return gradeLocally(localMatch);
   }
+
+  // 3. Fallback: MyMemory free translation API (5000 chars/day)
+  console.log('Attempting MyMemory check for:', originalWord);
+  const myMemoryResult = await getMyMemoryTranslation(originalWord, direction);
+  if (myMemoryResult) {
+    return gradeLocally(myMemoryResult, ' (ตรวจสอบผ่าน MyMemory API)');
+  }
+
+  // Fallback exhausted
+  return {
+    isCorrect: null,
+    feedback: `ขออภัยครับ ระบบไม่สามารถตรวจคำแปลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง`,
+    correctTranslation: null,
+  };
 }

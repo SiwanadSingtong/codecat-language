@@ -67,7 +67,7 @@ export default function PracticeView() {
   }, [supabase]);
 
   // Load a new word
-  const loadNewWord = async () => {
+  const loadNewWord = async (forceRefresh = false) => {
     setLoadingWord(true);
     setTranslationInput('');
     setResult(null);
@@ -79,17 +79,37 @@ export default function PracticeView() {
       : direction;
     setActiveDirection(activeDir);
     
+    const cacheKey = `catlingo-cached-words-${level}-${activeDir}`;
+    
+    if (forceRefresh === true) {
+      localStorage.removeItem(cacheKey);
+    }
+
     try {
-      const response = await axios.post('/api/practice/word', {
-        level,
-        direction: activeDir,
-        exclude: currentWord?.word || ''
-      });
-      const data = response.data;
-      if (data && data.word) {
-        setCurrentWord(data);
+      const cachedData = localStorage.getItem(cacheKey);
+      let words = cachedData ? JSON.parse(cachedData) : [];
+
+      if (words.length > 0) {
+        // Draw from cache
+        const nextWord = words.shift();
+        localStorage.setItem(cacheKey, JSON.stringify(words));
+        setCurrentWord(nextWord);
       } else {
-        throw new Error("Failed to load word");
+        // Fetch new batch from API
+        const response = await axios.post('/api/practice/word', {
+          level,
+          direction: activeDir,
+          count: 10
+        });
+        const data = response.data;
+        if (data && Array.isArray(data) && data.length > 0) {
+          const nextWord = data[0];
+          const remainingWords = data.slice(1);
+          localStorage.setItem(cacheKey, JSON.stringify(remainingWords));
+          setCurrentWord(nextWord);
+        } else {
+          throw new Error("Failed to load words batch");
+        }
       }
     } catch (error) {
       console.error("Error loading practice word:", error);
@@ -100,6 +120,9 @@ export default function PracticeView() {
 
   // Load word automatically on mount/config change
   useEffect(() => {
+    // Clear cache of all directions for the current level to ensure fresh content
+    localStorage.removeItem(`catlingo-cached-words-${level}-th-en`);
+    localStorage.removeItem(`catlingo-cached-words-${level}-en-th`);
     loadNewWord();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level, direction]);
@@ -112,15 +135,24 @@ export default function PracticeView() {
     setResult(null);
 
     try {
-      const response = await axios.post('/api/practice/check', {
-        word: currentWord.word,
-        translation: translationInput.trim(),
-        direction: activeDirection,
-        // Pass the pre-fetched correct translation as fallback for when API rate limits
-        knownTranslation: currentWord.correctTranslation || null,
-      });
+      const userAns = translationInput.trim();
+      const cleanUser = userAns.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '');
+      
+      const acceptable = currentWord.acceptableTranslations || [currentWord.correctTranslation];
+      const cleanAcceptable = acceptable.map(t => t.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ''));
+      
+      const isCorrect = cleanAcceptable.includes(cleanUser);
+      
+      const feedback = isCorrect
+        ? `ถูกต้องแล้วครับ! "${userAns}" เป็นคำแปลที่ถูกต้องสำหรับ "${currentWord.word}"`
+        : `คำแปลยังไม่ถูกต้องครับ ลองใหม่อีกครั้งนะ`;
 
-      const data = response.data;
+      const data = {
+        isCorrect,
+        feedback,
+        correctTranslation: currentWord.correctTranslation
+      };
+
       setResult(data);
 
       // Save locally if guest
@@ -182,13 +214,19 @@ export default function PracticeView() {
           localStorage.setItem(statsKey, JSON.stringify(stats));
         }
       } else if (user && data) {
-        // Track registered user activity
-        axios.post('/api/user/stats', { type: 'practice' }).catch((err) => {
-          console.error('Failed to log practice activity to API:', err);
+        // Save word to database
+        await axios.post('/api/vocab', {
+          word: currentWord.word,
+          translation: currentWord.correctTranslation,
+          source_lang: activeDirection === 'th-en' ? 'th' : 'en',
+          isCorrect: data.isCorrect
         });
+
+        // Track registered user stats
+        await axios.post('/api/user/stats', { type: 'practice' });
       }
     } catch (error) {
-      console.error("Error checking translation:", error);
+      console.error("Error checking translation client-side:", error);
     } finally {
       setChecking(false);
     }

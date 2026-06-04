@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 import { usageStats, logGeminiRequest } from '@/utils/gemini';
 
@@ -14,22 +13,67 @@ async function isAdmin(supabase) {
   return user.email === adminEmail;
 }
 
-async function pingGeminiAPI() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+async function pingDeepSeekAPI() {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey || apiKey === 'your_deepseek_api_key_here') {
     return {
       status: 'not_configured',
-      message: 'GEMINI_API_KEY ยังไม่ได้ตั้งค่าในระบบ',
+      message: 'DEEPSEEK_API_KEY ยังไม่ได้ตั้งค่าในระบบ',
       latencyMs: null,
     };
   }
 
   const start = Date.now();
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
-    await model.generateContent('ping');
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'user', content: 'ping' }
+        ],
+        max_tokens: 5,
+        stream: false
+      })
+    });
+
     const latencyMs = Date.now() - start;
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      const status = response.status;
+      const msg = `DeepSeek API error: ${status} - ${errorText}`;
+      logGeminiRequest(false, new Error(msg));
+
+      if (status === 429 || errorText.toLowerCase().includes('quota') || errorText.toLowerCase().includes('rate limit')) {
+        return {
+          status: 'quota_exceeded',
+          message: 'Rate Limit / Quota หมดชั่วคราว (429)',
+          latencyMs,
+          error: errorText,
+        };
+      }
+      if (status === 401 || errorText.toLowerCase().includes('invalid key') || errorText.toLowerCase().includes('invalid_key')) {
+        return {
+          status: 'invalid_key',
+          message: 'API Key ไม่ถูกต้องหรือยังไม่ได้เปิดใช้งาน (401)',
+          latencyMs,
+          error: errorText,
+        };
+      }
+      return {
+        status: 'error',
+        message: `เกิดข้อผิดพลาดจาก API: ${status}`,
+        latencyMs,
+        error: errorText,
+      };
+    }
+
+    const data = await response.json();
     logGeminiRequest(true);
     return {
       status: 'ok',
@@ -41,25 +85,9 @@ async function pingGeminiAPI() {
     const msg = error.message || '';
     logGeminiRequest(false, error);
 
-    if (msg.includes('429') || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('rate limit')) {
-      return {
-        status: 'quota_exceeded',
-        message: 'Rate Limit / Quota หมดชั่วคราว (429)',
-        latencyMs,
-        error: msg,
-      };
-    }
-    if (msg.includes('API key not valid') || msg.includes('API_KEY_INVALID')) {
-      return {
-        status: 'invalid_key',
-        message: 'API Key ไม่ถูกต้องหรือยังไม่ได้เปิดใช้งาน',
-        latencyMs,
-        error: msg,
-      };
-    }
     return {
       status: 'error',
-      message: 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ',
+      message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย',
       latencyMs,
       error: msg,
     };
@@ -78,11 +106,11 @@ export async function GET(request) {
 
   let pingResult = null;
   if (ping) {
-    pingResult = await pingGeminiAPI();
+    pingResult = await pingDeepSeekAPI();
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  const keyConfigured = !!(apiKey && apiKey !== 'your_gemini_api_key_here');
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const keyConfigured = !!(apiKey && apiKey !== 'your_deepseek_api_key_here');
   const maskedKey = keyConfigured
     ? `${apiKey.slice(0, 6)}${'*'.repeat(Math.max(0, apiKey.length - 10))}${apiKey.slice(-4)}`
     : null;
@@ -90,7 +118,7 @@ export async function GET(request) {
   return NextResponse.json({
     keyConfigured,
     maskedKey,
-    model: 'gemini-2.5-flash-lite',
+    model: 'deepseek-chat',
     ping: pingResult,
     usage: usageStats,
     serverTime: new Date().toISOString(),

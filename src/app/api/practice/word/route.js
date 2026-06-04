@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { generatePracticeWord } from '@/utils/gemini';
+import { generatePracticeWordsBatch } from '@/utils/gemini';
 
 export async function POST(request) {
   try {
-    const { level, direction, exclude } = await request.json();
+    const { level, direction, count } = await request.json();
 
-    const data = await generatePracticeWord(level || 'Beginner', direction || 'th-en', exclude);
+    const data = await generatePracticeWordsBatch(level || 'Beginner', direction || 'th-en', count || 10);
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error in /api/practice/word route:', error);

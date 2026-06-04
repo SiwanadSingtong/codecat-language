@@ -141,17 +141,33 @@ export default function VocabularyView() {
 
     setCheckingReview(true);
     const wordItem = reviewQueue[reviewIdx];
-    const direction = wordItem.source_lang === 'th' ? 'th-en' : 'en-th';
 
     try {
-      // Evaluate translation with AI using Axios
-      const response = await axios.post('/api/practice/check', {
-        word: wordItem.word,
-        translation: reviewInput.trim(),
-        direction,
-      });
+      const userAns = reviewInput.trim();
+      const cleanUser = userAns.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '');
 
-      const data = response.data;
+      // Split the saved translation by comma, slash, semicolon, or vertical bar, and Thai/English 'or'
+      const targetTranslation = wordItem.translation || '';
+      const targets = targetTranslation
+        .split(/[,/;\u0e2b\u0e23\u0e32\u0e01|]|\bor\b|\bหรือ\b/)
+        .map(t => t.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ''))
+        .filter(Boolean);
+
+      if (targets.length === 0) {
+        targets.push(targetTranslation.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ''));
+      }
+
+      const isCorrect = targets.includes(cleanUser);
+
+      const feedback = isCorrect
+        ? `ถูกต้องแล้วครับ! "${userAns}" เป็นคำแปลที่ถูกต้อง`
+        : `คำแปลยังไม่ถูกต้องครับ ลองใหม่อีกครั้งนะ`;
+
+      const data = {
+        isCorrect,
+        feedback,
+      };
+
       setReviewResult(data);
 
       if (data.isCorrect) {
@@ -159,12 +175,24 @@ export default function VocabularyView() {
         
         // Update correct count in local state
         setVocabList(prev => prev.map(v => 
-          v.id === wordItem.id ? { ...v, correct_count: v.correct_count + 1 } : v
+          v.id === wordItem.id ? { ...v, correct_count: (v.correct_count || 0) + 1 } : v
         ));
+
+        // Save guest vocab to localStorage if guest
+        if (!user) {
+          const localVocab = localStorage.getItem('guest-vocabularies');
+          if (localVocab) {
+            const list = JSON.parse(localVocab);
+            const updatedList = list.map(v => 
+              v.id === wordItem.id ? { ...v, correct_count: (v.correct_count || 0) + 1 } : v
+            );
+            localStorage.setItem('guest-vocabularies', JSON.stringify(updatedList));
+          }
+        }
       }
 
       // Save locally if guest or post to API if logged in
-      if (!user && data) {
+      if (!user) {
         if (typeof window !== 'undefined') {
           const today = new Date().toISOString().split('T')[0];
           const historyKey = 'guest-activity-history';
@@ -199,11 +227,17 @@ export default function VocabularyView() {
           stats.last_active_date = today;
           localStorage.setItem(statsKey, JSON.stringify(stats));
         }
-      } else if (user && data) {
-        // Track registered user activity
-        axios.post('/api/user/stats', { type: 'review' }).catch((err) => {
-          console.error('Failed to log review activity to API:', err);
+      } else {
+        // Save vocab update to database (will increment correct_count if isCorrect)
+        await axios.post('/api/vocab', {
+          word: wordItem.word,
+          translation: wordItem.translation,
+          source_lang: wordItem.source_lang,
+          isCorrect: data.isCorrect
         });
+
+        // Track registered user activity
+        await axios.post('/api/user/stats', { type: 'review' });
       }
     } catch (error) {
       console.error("Error checking review translation:", error);

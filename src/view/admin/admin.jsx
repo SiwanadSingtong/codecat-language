@@ -264,7 +264,7 @@ export default function AdminView() {
               แผงผู้ดูแลระบบ
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              ตรวจสอบสถานะ Gemini API และการใช้งานระบบ
+              ตรวจสอบสถานะ DeepSeek API และการใช้งานระบบ
             </Typography>
           </Box>
         </Box>
@@ -309,7 +309,7 @@ export default function AdminView() {
       {/* ── Key not configured warning ── */}
       {!keyOk && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }}>
-          <strong>GEMINI_API_KEY ยังไม่ได้ตั้งค่า!</strong> กรุณาเพิ่มใน <code>.env</code> แล้ว restart เซิร์ฟเวอร์
+          <strong>DEEPSEEK_API_KEY ยังไม่ได้ตั้งค่า!</strong> กรุณาเพิ่มใน <code>.env</code> แล้ว restart เซิร์ฟเวอร์
         </Alert>
       )}
 
@@ -373,7 +373,7 @@ export default function AdminView() {
             ) : (
               <Box sx={{ textAlign: 'center', py: 2 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  กด "ทดสอบ" เพื่อ ping Gemini API แบบ real-time
+                  กด "ทดสอบ" เพื่อ ping DeepSeek API แบบ real-time
                 </Typography>
               </Box>
             )}
@@ -426,21 +426,21 @@ export default function AdminView() {
             accent="linear-gradient(90deg, #F59E0B, #FBBF24)"
           >
             <Alert severity="info" sx={{ mb: 2, borderRadius: '8px' }}>
-              ระบบใช้ <strong>Gemini 2.5 Flash Lite</strong> ผ่าน Google AI Studio (Free Tier)
+              ระบบใช้ <strong>DeepSeek V3 / Chat</strong> ผ่าน DeepSeek Platform
             </Alert>
-            <MetricRow label="RPM (Requests/นาที)" value="15 req/min" sub="Free tier limit" />
-            <MetricRow label="RPD (Requests/วัน)" value="1,500 req/day" sub="Free tier limit" />
-            <MetricRow label="TPM (Tokens/นาที)" value="1,000,000 tokens" sub="Flash model" />
+            <MetricRow label="ความเร็วสูงสุด" value="ขึ้นอยู่กับ API Tier" sub="DeepSeek Platform" />
+            <MetricRow label="โมเดลหลัก" value="deepseek-chat" sub="DeepSeek V3 Model" />
+            <MetricRow label="ประเภทคีย์" value="Pay-as-you-go" sub="Developer API" />
             <Box sx={{ mt: 2 }}>
               <Typography variant="caption" color="text.secondary">
-                หากเกิน Quota จะเห็น error 429 ในหน้านี้ ✦ อัปเกรดแผนได้ที่{' '}
+                หากเกิน Quota จะเห็น error 429 ในหน้านี้ ✦ ตรวจสอบแดชบอร์ดและเติมเงินได้ที่{' '}
                 <a
-                  href="https://aistudio.google.com"
+                  href="https://platform.deepseek.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: '#4F46E5' }}
                 >
-                  Google AI Studio
+                  DeepSeek Platform
                 </a>
               </Typography>
             </Box>
@@ -499,7 +499,7 @@ export default function AdminView() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <HelpOutlineIcon color="primary" />
                 <Typography variant="subtitle1" fontWeight={700}>
-                  วิธีตั้งค่า ADMIN_EMAIL
+                  วิธีตั้งค่าระบบผู้ดูแลและคีย์ API
                 </Typography>
               </Box>
               <Divider sx={{ mb: 2, opacity: 0.3 }} />
@@ -507,13 +507,19 @@ export default function AdminView() {
                 <ol style={{ paddingLeft: 20, margin: 0, lineHeight: 2.2 }}>
                   <li>เปิดไฟล์ <code>.env</code> ในรูตโปรเจกต์</li>
                   <li>
-                    เพิ่มบรรทัด:{' '}
+                    ตั้งค่าอีเมลผู้ดูแล:{' '}
                     <code style={{ background: '#4F46E510', padding: '2px 6px', borderRadius: 4 }}>
                       ADMIN_EMAIL=your-email@example.com
                     </code>
                   </li>
+                  <li>
+                    ตั้งค่าคีย์ DeepSeek:{' '}
+                    <code style={{ background: '#4F46E510', padding: '2px 6px', borderRadius: 4 }}>
+                      DEEPSEEK_API_KEY=sk-xxxx...
+                    </code>
+                  </li>
                   <li>Restart dev server หรือ redeploy บน Vercel</li>
-                  <li>เข้าสู่ระบบด้วยอีเมลนั้นเพื่อดูหน้าแอดมิน</li>
+                  <li>เข้าสู่ระบบด้วยอีเมลผู้ดูแลเพื่อจัดการระบบ</li>
                 </ol>
               </Typography>
             </CardContent>
