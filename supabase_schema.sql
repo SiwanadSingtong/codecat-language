@@ -75,11 +75,13 @@ CREATE POLICY "Users can delete their own vocabularies"
 
 -- 3. Create Chat Messages Table
 CREATE TABLE IF NOT EXISTS public.chat_messages (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('user', 'model')),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    role VARCHAR(50) NOT NULL, -- 'user' or 'model'
     content TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+    scenario VARCHAR(50) DEFAULT 'general' NOT NULL,
+    extracted BOOLEAN DEFAULT FALSE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- Enable RLS on chat_messages
@@ -93,6 +95,10 @@ CREATE POLICY "Users can view their own chat messages"
 CREATE POLICY "Users can insert their own chat messages" 
     ON public.chat_messages FOR INSERT 
     WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own chat messages" 
+    ON public.chat_messages FOR UPDATE 
+    USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete their own chat messages" 
     ON public.chat_messages FOR DELETE 

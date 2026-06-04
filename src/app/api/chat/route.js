@@ -4,14 +4,14 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function POST(request) {
   try {
-    const { history, level } = await request.json();
+    const { history, level, scenario } = await request.json();
 
     if (!history || !Array.isArray(history) || history.length === 0) {
       return NextResponse.json({ error: 'History is required and must be a non-empty array' }, { status: 400 });
     }
 
     // Call Gemini utility
-    const aiResponseText = await getTeacherResponse(history, level || 'Beginner');
+    const aiResponseText = await getTeacherResponse(history, level || 'Beginner', scenario || 'general');
 
     // Attempt to save to Supabase if authenticated
     const supabase = await createClient();
@@ -25,6 +25,7 @@ export async function POST(request) {
         user_id: user.id,
         role: 'user',
         content: userMessage.content,
+        scenario: scenario || 'general',
       });
 
       // Save AI message
@@ -32,6 +33,7 @@ export async function POST(request) {
         user_id: user.id,
         role: 'model',
         content: aiResponseText,
+        scenario: scenario || 'general',
       });
     }
 

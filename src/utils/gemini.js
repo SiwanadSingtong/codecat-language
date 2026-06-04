@@ -43,7 +43,7 @@ async function callDeepSeek(messages, systemInstruction) {
         { role: 'system', content: systemInstruction },
         ...messages
       ],
-      temperature: 0.7,
+      temperature: 0.2,
       stream: false
     })
   });
@@ -64,38 +64,132 @@ async function callDeepSeek(messages, systemInstruction) {
  * Gets a conversational response from the AI English Teacher using DeepSeek.
  * Automatically checks and corrects grammar, especially "is am are".
  */
-export async function getTeacherResponse(history, userLevel = 'Beginner') {
+const SCENARIOS = {
+  general: {
+    role: "You are 'Catlingo Teacher', an encouraging, friendly, and expert AI English Teacher.",
+    context: "The student is chatting with you to practice English conversation."
+  },
+  cafe: {
+    role: "You are a friendly Barista at a coffee shop.",
+    context: "The student is a customer ordering drinks/pastries and chatting with you at the counter."
+  },
+  job_interview: {
+    role: "You are a professional HR Manager at a tech company.",
+    context: "You are conducting a job interview with the student for a job. Keep it realistic but encouraging."
+  },
+  gaming: {
+    role: "You are a friendly gaming teammate playing a multiplayer game (like Overwatch or Valorant) with the student.",
+    context: "You are playing together in a match, sharing strategies, and communicating in-game callouts."
+  }
+};
+
+export async function getTeacherResponse(history, userLevel = 'Beginner', scenario = 'general') {
   const currentKey = process.env.DEEPSEEK_API_KEY;
   if (!currentKey || currentKey === 'your_deepseek_api_key_here') {
     return "API Key สำหรับ DeepSeek ยังไม่ได้กำหนดค่า กรุณาเพิ่ม DEEPSEEK_API_KEY ในไฟล์ .env ของคุณครับ";
   }
 
-  const systemInstruction = `
-You are "Catlingo Teacher", an encouraging, friendly, and expert AI English Teacher.
-The student's English proficiency level is: ${userLevel}.
+  const scenarioConfig = SCENARIOS[scenario] || SCENARIOS.general;
 
-CORE RULES:
-1. Adapt your vocabulary, phrasing, and response length to match the student's level (${userLevel}).
-   - Beginner: Use short, simple sentences. Explain words if they are slightly hard.
-   - Intermediate: Use standard English with a mix of simple and complex sentences.
-   - Advanced: Carry out a natural, fluent English conversation.
-2. Actively monitor the student's grammar, especially the use of "is", "am", and "are".
-   - If the student makes a grammatical error (specifically using "is am are" incorrectly, e.g. "I is", "They am", "He are"), you MUST gently point it out, explain the correct grammar rule in a clear and friendly way (bilingual in English and Thai if they are Beginner), and invite them to try rewriting it.
-   - Example correction: "You wrote: 'She am a teacher'. Remember that for singular pronouns like 'She', we use 'is' (She is a teacher). Try saying that!"
-3. Keep the conversation engaging. Ask open-ended questions about their day, hobbies, or studies to prompt them to reply.
-4. Keep answers relatively concise so the chat flows naturally.
-5. When communicating in Thai, ALWAYS use the polite particle "ครับ" (masculine polite particle). NEVER use "ค่ะ" or "ครับ/ค่ะ" under any circumstances.
+  const systemInstruction = `
+${scenarioConfig.role}
+Student English level: ${userLevel}.
+Context: ${scenarioConfig.context}.
+
+CRITICAL OUTPUT FORMAT RULES:
+1. Your response must be extremely clean, easy to read, and formatted exactly as follows:
+   - Part 1: Start with "💬 ", a very brief natural reply to the student in English matching the level (${userLevel}).
+   - Part 2: Start with "💡 คำที่ผิด:", a grammar check and explanation in Thai. 
+     Format for grammar check:
+     * If student made mistakes, you MUST list each mistake on a NEW line (DO NOT use "|" or the word "ผิด:" on the subsequent lines):
+       💡 คำที่ผิด:
+       "[ผิด 1]" -> แก้เป็น: "[ถูก 1]" (เพราะ [อธิบายเหตุผลสั้นๆ])
+       "[ผิด 2]" -> แก้เป็น: "[ถูก 2]" (เพราะ [อธิบายเหตุผลสั้นๆ])
+     * If user's sentence is correct: "💡 ยินดีด้วยครับ! ประโยคที่เขียนมาถูกต้องไม่มีข้อผิดพลาดเลยครับ"
+     
+     Then, add exactly one blank line, and then ALWAYS write the section header "✨ ประโยคที่แนะนำ" (DO NOT write "รูปประโยคที่ดี" or "ประโยคที่แนะนำครับ" and do not use bolding/markdown headings) followed by the alternative sentences strictly numbered as "1.", "2.", "3.":
+     ✨ ประโยคที่แนะนำ
+     1. [Sentence option 1 (with Thai translation in parentheses for key words/verbs/prepositions, e.g. "I can play both, but I like playing Push mode more than other modes.")]
+     2. [Sentence option 2 (with Thai translation in parentheses for key words/verbs/prepositions, e.g. "I can play both, but I prefer (ชอบมากกว่า) Push mode over (มากกว่า) the others.")]
+     3. [Sentence option 3]
+     
+   - Part 3: Start with "📚 ข้อน่ารู้" (DO NOT use bolding or markdown headings) followed by one paragraph in Thai explaining a key vocabulary word, collocation, or grammar point from the chat, its meaning, how to use it, a synonym, and an English example sentence using that synonym.
+     Example format:
+     📚 ข้อน่ารู้
+     คำว่า "[คำศัพท์]" แปลว่า "[คำแปล]" มักใช้สำหรับ [วิธีใช้] ส่วนคำที่คล้ายกันคือ "[คำใกล้เคียง]" ตัวอย่างเช่น "[ประโยคตัวอย่างสำหรับคำใกล้เคียง]"
+     
+   - Part 4: Start with "🎯 ", one short conversational English question to keep the chat going (with Thai translation in parentheses).
+
+2. Separate Part 1, Part 2, Part 3, and Part 4 with exactly one blank line.
+3. You MUST prefix each recommended sentence under the "✨ ประโยคที่แนะนำ" section with numbers "1.", "2.", "3." (each sentence MUST be on a new line). NEVER leave them as unnumbered raw text or merge them.
+4. In the recommended sentences under "✨ ประโยคที่แนะนำ", ALWAYS translate key vocabulary, verbs, or prepositions into Thai in parentheses right next to the word to help the student learn them (e.g. "prefer (ชอบมากกว่า)", "over (มากกว่า)", "deal (สร้าง/ทำ)").
+5. Absolutely NO markdown headings (no '#', '##', '###'), NO dividers (no '---'), NO blockquotes (no '>'), and NO excessive asterisks '*' (keep formatting to absolute minimum).
+6. Keep the total response length strictly under 180 words/tokens to save tokens.
+7. In Thai, ALWAYS use polite particle "ครับ" (never "อย่างเป็นทางการ/กันเอง", and never "ค่ะ" or "ครับ/ค่ะ").
+8. Even if previous assistant/model messages in the chat history used a different format (like using vertical bars "|" or unnumbered sentences), you MUST ignore their style and strictly follow these format rules for your new response. ALWAYS list each grammar mistake on a new line and ALWAYS prefix recommendations with "1.", "2.".
 `;
 
   try {
-    // Transform history structure to match DeepSeek/OpenAI API:
+    // Transform and clean history structure to match DeepSeek/OpenAI API:
     // [{ role: 'user'|'assistant', content: '...' }]
-    const messages = history.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'assistant',
-      content: msg.content
-    }));
+    const messages = history.map(msg => {
+      let content = msg.content;
+      if (msg.role === 'model' || msg.role === 'assistant') {
+        // Clean vertical bars and align with the new template inside the conversation history
+        content = content.replace(/💡 ผิด:/g, '💡 คำที่ผิด:\n');
+        content = content.replace(/\s*\|\s*ผิด:\s*/g, '\n');
+        content = content.replace(/✨ ประโยคที่แนะนำครับ/g, '✨ ประโยคที่แนะนำ');
+      }
+      return {
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: content
+      };
+    });
 
-    const responseText = await callDeepSeek(messages, systemInstruction);
+    let responseText = await callDeepSeek(messages, systemInstruction);
+
+    // Programmatic cleanup of formatting mistakes in responseText
+    if (responseText.includes('💡 ผิด:')) {
+      responseText = responseText.replace(/💡 ผิด:/g, '💡 คำที่ผิด:\n');
+    }
+    // Replace vertical bar error separators with newlines
+    responseText = responseText.replace(/\s*\|\s*ผิด:\s*/g, '\n');
+    responseText = responseText.replace(/\s*\|\s*/g, '\n');
+
+    // Ensure recommended sentences are strictly numbered and separate
+    if (responseText.includes('✨ ประโยคที่แนะนำ')) {
+      const parts = responseText.split('✨ ประโยคที่แนะนำ');
+      const header = parts[0];
+      const rest = parts[1];
+      
+      let targetSection = rest;
+      let suffix = '';
+      if (rest.includes('📚 ข้อน่ารู้')) {
+        const splitRest = rest.split('📚 ข้อน่ารู้');
+        targetSection = splitRest[0];
+        suffix = '📚 ข้อน่ารู้' + splitRest.slice(1).join('📚 ข้อน่ารู้');
+      } else if (rest.includes('🎯')) {
+        const splitRest = rest.split('🎯');
+        targetSection = splitRest[0];
+        suffix = '🎯' + splitRest.slice(1).join('🎯');
+      }
+      
+      const lines = targetSection.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+        
+      const numberedLines = lines.map((line, idx) => {
+        const numPattern = /^\d+\.\s*/;
+        if (numPattern.test(line)) {
+          return line;
+        } else {
+          return `${idx + 1}. ${line}`;
+        }
+      });
+      
+      responseText = header.trim() + '\n\n✨ ประโยคที่แนะนำ\n' + numberedLines.join('\n') + '\n\n' + suffix.trim();
+    }
+
     logGeminiRequest(true);
     return responseText;
   } catch (error) {
